@@ -7,6 +7,7 @@ export interface RightSidebarProps {
   setIsRightPanelOpen: (v: boolean) => void;
   isGenerating: boolean;
   generateWarning: string | null;
+  hasSelectedArtboard: boolean;
 
   planPrompt: string;
   setPlanPrompt: (v: string) => void;
@@ -22,7 +23,7 @@ export interface RightSidebarProps {
 
 const RightSidebar: React.FC<RightSidebarProps> = ({
   isRightPanelOpen, setIsRightPanelOpen,
-  isGenerating, generateWarning,
+  isGenerating, generateWarning, hasSelectedArtboard,
   planPrompt, setPlanPrompt,
   floorType, setFloorType,
   gridModule, setGridModule,
@@ -64,6 +65,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           <SketchToPlanPanel
             isGenerating={isGenerating}
             generateWarning={generateWarning}
+            hasSelectedArtboard={hasSelectedArtboard}
             planPrompt={planPrompt}
             setPlanPrompt={setPlanPrompt}
             floorType={floorType}

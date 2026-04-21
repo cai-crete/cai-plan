@@ -26,6 +26,7 @@ function formatGridLabel(mm: number): string {
 export interface SketchToPlanPanelProps {
   isGenerating: boolean;
   generateWarning: string | null;
+  hasSelectedArtboard: boolean;
 
   planPrompt: string;
   setPlanPrompt: (v: string) => void;
@@ -40,7 +41,7 @@ export interface SketchToPlanPanelProps {
 }
 
 const SketchToPlanPanel: React.FC<SketchToPlanPanelProps> = ({
-  isGenerating, generateWarning,
+  isGenerating, generateWarning, hasSelectedArtboard,
   planPrompt, setPlanPrompt,
   floorType, setFloorType,
   gridModule, setGridModule,
@@ -65,7 +66,7 @@ const SketchToPlanPanel: React.FC<SketchToPlanPanelProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const canGenerate = !!floorType && !isGenerating && !generateWarning;
+  const canGenerate = !!floorType && hasSelectedArtboard && !isGenerating && !generateWarning;
 
   return (
     <aside className="h-full w-full rounded-[1.25rem] flex flex-col overflow-hidden bg-white/80 dark:bg-black/80 backdrop-blur-sm border border-black/10 dark:border-white/10">

@@ -1563,6 +1563,10 @@ export default function App() {
           setIsRightPanelOpen={setIsRightPanelOpen}
           isGenerating={isGenerating}
           generateWarning={generateWarning}
+          hasSelectedArtboard={(() => {
+            const item = canvasItems.find(i => i.id === selectedItemIds[0]);
+            return !!item && (item.type === 'artboard' || item.type === 'upload' || item.type === 'sketch_generated');
+          })()}
           planPrompt={planPrompt}
           setPlanPrompt={setPlanPrompt}
           floorType={floorType}
