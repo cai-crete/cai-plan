@@ -1,0 +1,21 @@
+# Claude Code 및 Ralph-wiggum 임시/로컬 상태 파일
+.claude/*.local.md
+.claude/*.tmp.*
+.claude/settings.local.json
+
+# Environment files
+.env*
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+

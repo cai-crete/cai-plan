@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>CAI Harness — 전체 로드맵</title>
+<style>
+:root{
+  --bg:#0b0d14;--s1:#131620;--s2:#1a1e2e;--s3:#222740;
+  --border:#2a2f4a;--border2:#3a4070;
+  --a:#6c8cff;--a2:#a78bfa;--a3:#64ffda;
+  --yellow:#ffd66e;--red:#ff6b6b;--orange:#ffaa55;
+  --text:#dde3f5;--muted:#7a85a8;
+  --agent-a:#3b82f6;--agent-b:#8b5cf6;--agent-c:#10b981;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Malgun Gothic',sans-serif;font-size:13px;line-height:1.7;padding:0 0 80px;}
+
+/* ── NAV ── */
+nav{background:var(--s1);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;gap:24px;position:sticky;top:0;z-index:100;}
+nav h1{font-size:15px;font-weight:700;color:var(--a);letter-spacing:.3px;}
+nav a{color:var(--muted);font-size:12px;text-decoration:none;white-space:nowrap;}
+nav a:hover{color:var(--text);}
+.badge-nav{background:var(--s3);border:1px solid var(--border2);border-radius:3px;padding:1px 7px;font-size:10px;color:var(--a3);font-family:monospace;}
+
+/* ── SECTIONS ── */
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px;}
+section{padding:48px 0 8px;}
+.sec-header{margin-bottom:28px;}
+.sec-num{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
+.sec-title{font-size:22px;font-weight:700;color:var(--text);margin-top:4px;}
+.sec-desc{color:var(--muted);font-size:13px;margin-top:6px;}
+hr.divider{border:none;border-top:1px solid var(--border);margin:40px 0;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:20px 24px;}
+.card-title{font-size:13px;font-weight:700;color:var(--a2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.6px;}
+
+/* ── AGENT BOXES ── */
+.agents-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;}
+.agent-box{border-radius:10px;padding:20px 22px;border:1px solid;}
+.agent-box.a{background:#1a2040;border-color:#3b82f6;}
+.agent-box.b{background:#1e1a36;border-color:#8b5cf6;}
+.agent-box.c{background:#0f2820;border-color:#10b981;}
+.agent-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.agent-box.a .agent-label{color:#60a5fa;}
+.agent-box.b .agent-label{color:#a78bfa;}
+.agent-box.c .agent-label{color:#34d399;}
+.agent-name{font-size:17px;font-weight:700;margin-bottom:10px;}
+.agent-box.a .agent-name{color:#93c5fd;}
+.agent-box.b .agent-name{color:#c4b5fd;}
+.agent-box.c .agent-name{color:#6ee7b7;}
+.agent-file{font-family:monospace;font-size:11px;padding:5px 9px;border-radius:4px;margin-bottom:12px;display:inline-block;}
+.agent-box.a .agent-file{background:#1e3a6e;color:#93c5fd;}
+.agent-box.b .agent-file{background:#2d1b69;color:#c4b5fd;}
+.agent-box.c .agent-file{background:#064e3b;color:#6ee7b7;}
+.agent-duties{list-style:none;padding:0;}
+.agent-duties li{color:var(--muted);font-size:12px;padding:3px 0;padding-left:14px;position:relative;}
+.agent-duties li::before{content:"→";position:absolute;left:0;color:var(--border2);}
+.boundary-box{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:16px;}
+.boundary-box h4{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;}
+.boundary-list{display:flex;flex-wrap:wrap;gap:8px;}
+.boundary-item{background:var(--s3);border:1px solid var(--border2);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--text);}
+
+/* ── FLOW ARROWS ── */
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:0;}
+.flow-box{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:12px;min-width:100px;text-align:center;}
+.flow-box.highlight{border-color:var(--a);color:var(--a);}
+.flow-box.green{border-color:var(--a3);color:var(--a3);}
+.flow-box.red{border-color:var(--red);color:var(--red);}
+.flow-box.yellow{border-color:var(--yellow);color:var(--yellow);}
+.flow-box.purple{border-color:var(--a2);color:var(--a2);}
+.arr{color:var(--muted);padding:0 8px;font-size:16px;flex-shrink:0;}
+.arr.down{display:block;text-align:center;padding:4px 0;transform:none;}
+.flow-col{display:flex;flex-direction:column;align-items:center;gap:0;}
+.flow-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+
+/* ── PIPELINE ── */
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px;}
+.pipe-phase{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:14px;}
+.pipe-phase-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px;}
+.pipe-node{background:var(--s1);border:1px solid var(--border);border-radius:5px;padding:7px 10px;margin-bottom:6px;font-size:11px;}
+.pipe-node span{display:block;color:var(--muted);font-size:10px;margin-top:2px;}
+.phase-planning .pipe-phase-title{color:#60a5fa;}
+.phase-structure .pipe-phase-title{color:#34d399;}
+.phase-visual .pipe-phase-title{color:#f59e0b;}
+.phase-package .pipe-phase-title{color:#f87171;}
+.phase-planning{border-color:#3b82f650;}
+.phase-structure{border-color:#10b98150;}
+.phase-visual{border-color:#f59e0b50;}
+.phase-package{border-color:#ef444450;}
+
+/* ── LOOP DIAGRAMS ── */
+.loop-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;}
+.loop-box{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:22px;}
+.loop-title{font-size:14px;font-weight:700;margin-bottom:16px;}
+.step{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px;}
+.step-num{background:var(--s3);border:1px solid var(--border2);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.step-content{flex:1;}
+.step-label{font-size:13px;font-weight:600;color:var(--text);}
+.step-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+.step-sub{list-style:none;margin-top:6px;}
+.step-sub li{font-size:11px;color:var(--muted);padding:2px 0 2px 12px;position:relative;}
+.step-sub li::before{content:"·";position:absolute;left:2px;color:var(--border2);}
+.step-connector{width:24px;height:20px;border-left:2px dashed var(--border2);margin-left:11px;flex-shrink:0;}
+.pass-box{display:inline-flex;align-items:center;gap:6px;background:#0a2e1a;border:1px solid #10b98160;border-radius:5px;padding:5px 10px;font-size:11px;color:#34d399;margin-top:8px;}
+.fail-box{display:inline-flex;align-items:center;gap:6px;background:#2e0a0a;border:1px solid #ef444460;border-radius:5px;padding:5px 10px;font-size:11px;color:#f87171;margin-top:4px;}
+.loop-verdict{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+
+/* ── FULL LOOP B ── */
+.loopb-flow{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;}
+.loopb-col{flex:1;min-width:280px;}
+.loopb-header{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;padding:7px 12px;border-radius:6px;}
+.loopb-header.exec{background:#1e3a6e22;border:1px solid #3b82f660;color:#60a5fa;}
+.loopb-header.verif{background:#2d1b6922;border:1px solid #8b5cf660;color:#a78bfa;}
+.phase-block{background:var(--s1);border:1px solid var(--border);border-radius:7px;padding:12px 14px;margin-bottom:8px;}
+.phase-block-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;}
+.check-item{font-size:11px;color:var(--muted);padding:2px 0 2px 14px;position:relative;}
+.check-item::before{content:"☐";position:absolute;left:0;color:var(--border2);font-size:10px;}
+.handoff-arrow{display:flex;align-items:center;justify-content:center;padding:8px 0;}
+.handoff-arrow-inner{background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:6px 14px;font-size:11px;color:var(--yellow);display:flex;align-items:center;gap:8px;}
+
+/* ── FILE TABLE ── */
+.file-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;}
+.file-group{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.file-group-header{background:var(--s2);padding:10px 16px;font-size:12px;font-weight:700;color:var(--a2);border-bottom:1px solid var(--border);font-family:monospace;}
+.file-entry{display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.file-entry:last-child{border-bottom:none;}
+.file-entry:hover{background:var(--s2);}
+.file-name{font-family:monospace;font-size:11px;color:var(--a3);white-space:nowrap;min-width:180px;}
+.file-role{font-size:11px;color:var(--muted);}
+
+/* ── QUALITY ── */
+.quality-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;}
+.q-card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:16px;}
+.q-card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--a2);margin-bottom:10px;}
+.q-item{font-size:11px;color:var(--muted);padding:3px 0 3px 12px;position:relative;}
+.q-item::before{content:"→";position:absolute;left:0;color:var(--border2);}
+.pcs-bar{background:var(--s3);border-radius:4px;height:8px;margin:10px 0 4px;overflow:hidden;}
+.pcs-fill{background:linear-gradient(90deg,var(--a3),var(--a));height:100%;border-radius:4px;}
+.pcs-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);}
+
+/* ── CALLOUT ── */
+.callout{background:var(--s2);border-left:4px solid var(--a);border-radius:0 7px 7px 0;padding:14px 18px;margin:16px 0;font-size:12px;color:var(--text);}
+.callout strong{color:var(--a);}
+.callout.green{border-left-color:var(--a3);}
+.callout.green strong{color:var(--a3);}
+
+/* ── TAG ── */
+.tag{display:inline-block;border-radius:3px;padding:1px 7px;font-size:10px;font-family:monospace;}
+.tag.a{background:#1e3a6e;color:#93c5fd;}
+.tag.b{background:#2d1b69;color:#c4b5fd;}
+.tag.c{background:#064e3b;color:#6ee7b7;}
+
+/* ── ITER FLOW ── */
+.iter-flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap;}
+.iter-box{background:var(--s2);border:1px solid var(--border2);border-radius:7px;padding:10px 14px;font-size:12px;text-align:center;min-width:130px;}
+.iter-loop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 16px;}
+.iter-loop-label{font-size:10px;color:var(--muted);}
+.iter-loop-arr{font-size:18px;color:var(--muted);}
+
+/* ── FOOTER ── */
+footer{margin-top:60px;padding:20px 0;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:11px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <h1>CAI / CRE-TE — Harness 전체 로드맵</h1>
+  <a href="#agents">에이전트</a>
+  <a href="#pipeline">10-노드 파이프라인</a>
+  <a href="#loopa">Loop A</a>
+  <a href="#loopb">Loop B</a>
+  <a href="#agentc">Agent C</a>
+  <a href="#files">파일 역할</a>
+  <a href="#quality">품질 기준</a>
+  <span class="badge-nav">Protocol-First Architecture</span>
+</nav>
+
+<div class="wrap">
+
+<!-- ══════════════════════════════════════
+     §1 — 시스템 개요
+══════════════════════════════════════ -->
+<section>
+  <div class="sec-header">
+    <div class="sec-num">Overview</div>
+    <div class="sec-title">CAI Harness 시스템 구조</div>
+    <div class="sec-desc">Protocol-First 원칙 기반의 10노드 AI 건축 설계 자동화 파이프라인. 산출물 품질의 천장은 코드가 아닌 Protocol의 정밀도가 결정한다.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">전체 흐름 — 설계 요청 → 배포 승인</div>
+    <div class="flow" style="flex-wrap:wrap;gap:0;margin-top:8px;align-items:center;">
+      <div class="flow-box">사용자 요청</div>
+      <span class="arr">→</span>
+      <div class="flow-box yellow">product-spec<br><small style="font-size:10px;">NodeContract 정의</small></div>
+      <span class="arr">→</span>
+      <div class="flow-box" style="border-color:#3b82f6;color:#93c5fd;">AGENT A<br><small style="font-size:10px;">Protocol + Node App 빌드</small></div>
+      <span class="arr">→</span>
+      <div class="flow-box yellow">handoff 파일<br><small style="font-size:10px;">작업 인수인계</small></div>
+      <span class="arr">→</span>
+      <div class="flow-box" style="border-color:#8b5cf6;color:#c4b5fd;">AGENT B<br><small style="font-size:10px;">V1→V2→V3→V3.5→V4</small></div>
+      <span class="arr">→</span>
+      <div class="flow-box green">PASS<br><small style="font-size:10px;">배포 승인</small></div>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="flow" style="flex-wrap:wrap;gap:0;align-items:center;">
+        <div style="width:100%;display:flex;align-items:center;gap:0;flex-wrap:wrap;">
+          <div style="color:var(--muted);font-size:11px;padding:0 8px;min-width:360px;text-align:right;">AGENT B FAIL 시</div>
+          <span class="arr">→</span>
+          <div class="flow-box red" style="font-size:11px;">결함 보고서 발급</div>
+          <span class="arr">→</span>
+          <div class="flow-box" style="border-color:#3b82f6;color:#93c5fd;font-size:11px;">AGENT A 재작업<br>(Iteration N)</div>
+          <span class="arr" style="font-size:11px;">→ 최대 5회 반복</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;">
+      <div style="color:var(--muted);font-size:11px;text-align:right;min-width:360px;">UI/UX 구현 필요 시</div>
+      <span class="arr">→</span>
+      <div class="flow-box" style="border-color:#10b981;color:#34d399;font-size:11px;">AGENT C<br>프론트엔드 빌드</div>
+      <span class="arr">→</span>
+      <div class="flow-box yellow" style="font-size:11px;">design-handoff<br>→ AGENT B 인계</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §2 — 3 에이전트 체계
+══════════════════════════════════════ -->
+<section id="agents">
+  <div class="sec-header">
+    <div class="sec-num">Section 01</div>
+    <div class="sec-title">3 에이전트 체계</div>
+    <div class="sec-desc">모든 세션은 목적에 따라 A·B·C 중 하나로 발동된다. 각 에이전트는 자신의 영역 밖 파일을 임의로 수정하지 않는다.</div>
+  </div>
+
+  <div class="agents-row">
+    <!-- AGENT A -->
+    <div class="agent-box a">
+      <div class="agent-label">Agent A</div>
+      <div class="agent-name">실행 에이전트</div>
+      <div class="agent-file">loop-b-execution-agent.txt</div>
+      <ul class="agent-duties">
+        <li>Protocol 파일 작성·수정 (유일한 권한)</li>
+        <li>Node App 구현 — API Route, buildSystemPrompt()</li>
+        <li>AGENT B 결함 보고서 기반 수정 (HIGH → MID → LOW)</li>
+        <li>handoff 파일 작성 후 AGENT B에 인계</li>
+        <li>자기 자신은 PASS/FAIL을 발급하지 않음</li>
+      </ul>
+    </div>
+    <!-- AGENT B -->
+    <div class="agent-box b">
+      <div class="agent-label">Agent B</div>
+      <div class="agent-name">검증 에이전트</div>
+      <div class="agent-file">loop-b-verification-agent.txt</div>
+      <ul class="agent-duties">
+        <li>항상 Fresh 세션으로 시작 (기억 없음)</li>
+        <li>V1 Loop A → V2 품질점수 → V3 구현 → V3.5 코드리뷰 → V4 시뮬레이션</li>
+        <li>PASS/FAIL 판정 발급 (유일한 권한)</li>
+        <li>결함 보고서: Priority × Layer 분류</li>
+        <li>블로킹 결함이 있으면 PASS 불가</li>
+      </ul>
+    </div>
+    <!-- AGENT C -->
+    <div class="agent-box c">
+      <div class="agent-label">Agent C</div>
+      <div class="agent-name">디자인 에이전트</div>
+      <div class="agent-file">loop-c-design-agent.txt</div>
+      <ul class="agent-duties">
+        <li>UI/UX·프론트엔드 레이어 소유 (유일한 권한)</li>
+        <li>DESIGN.md + FRONTEND.md 기준 준수</li>
+        <li>3단계 흐름 구현: 입력 → 실행 → 출력</li>
+        <li>워터마크 "참고용 시각화" 자동 삽입 필수</li>
+        <li>법적·구조 보장 문구 배제</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="boundary-box" style="margin-top:16px;">
+    <h4>에이전트 간 경계 원칙</h4>
+    <div class="boundary-list">
+      <span class="boundary-item">AGENT A만 Protocol 작성·수정</span>
+      <span class="boundary-item">AGENT B만 PASS/FAIL 발급</span>
+      <span class="boundary-item">AGENT C만 UI/UX 레이어 소유</span>
+      <span class="boundary-item">어떤 에이전트도 자신의 영역 밖 파일 수정 금지</span>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title">에이전트 발동 트리거</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+        <div>
+          <div style="color:#60a5fa;font-size:11px;font-weight:700;margin-bottom:6px;">AGENT A 발동 키워드</div>
+          <div style="font-size:11px;color:var(--muted);">Protocol 작성, Protocol 수정, 노드 앱 개발, API Route 구현, buildSystemPrompt(), 결함 수정</div>
+        </div>
+        <div>
+          <div style="color:#a78bfa;font-size:11px;font-weight:700;margin-bottom:6px;">AGENT B 발동 키워드</div>
+          <div style="font-size:11px;color:var(--muted);">검증해줘, PASS 확인, 결함 보고서, Loop B 검증 시작, handoff 파일 검토</div>
+        </div>
+        <div>
+          <div style="color:#34d399;font-size:11px;font-weight:700;margin-bottom:6px;">AGENT C 발동 키워드</div>
+          <div style="font-size:11px;color:var(--muted);">UI 만들어줘, 페이지 구현, 프론트엔드 구현, 컴포넌트 작성, 디자인 적용, Tailwind 스타일링</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §3 — 10-노드 파이프라인
+══════════════════════════════════════ -->
+<section id="pipeline">
+  <div class="sec-header">
+    <div class="sec-num">Section 02</div>
+    <div class="sec-title">10-노드 파이프라인 (ARCHITECTURE.md)</div>
+    <div class="sec-desc">4개 Phase로 구성된 건축 설계 자동화 파이프라인. 각 노드는 독립적인 Next.js 앱으로, Claude API에 Principle Protocol을 system 파라미터로 주입하여 동작한다.</div>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe-phase phase-planning">
+      <div class="pipe-phase-title">Phase 1 — Planning</div>
+      <div class="pipe-node">N01 · planner<span>사업 타당성·리스크 검증</span></div>
+      <div class="pipe-node">N02 · writer<span>건축 내러티브 텍스트 생성</span></div>
+    </div>
+    <div class="pipe-phase phase-structure">
+      <div class="pipe-phase-title">Phase 2 — Structure</div>
+      <div class="pipe-node">N03 · sketch to plan<span>스케치 → 2D 도면</span></div>
+      <div class="pipe-node">N04 · plan to volume<span>2D → 3D 매스 모델</span></div>
+      <div class="pipe-node">N05 · plan to diagram<span>동선·조닝·채광 다이어그램</span></div>
+    </div>
+    <div class="pipe-phase phase-visual">
+      <div class="pipe-phase-title">Phase 3 — Visualization</div>
+      <div class="pipe-node">N06 · sketch to image<span>스케치 → 극사실주의 이미지</span></div>
+      <div class="pipe-node">N07 · image to elevation<span>투시도 → 정사영 입면도</span></div>
+      <div class="pipe-node">N08 · style edit<span>형태 유지, 마감재·계절 변경</span></div>
+      <div class="pipe-node" style="border-color:#f59e0b50;color:#fbbf24;">N09 · change viewpoint<span>다양한 카메라 앵글 ✓ 완성</span></div>
+    </div>
+    <div class="pipe-phase phase-package">
+      <div class="pipe-phase-title">Phase 4 — Packaging</div>
+      <div class="pipe-node">N10 · print<span>최종 증명서 자동 포맷팅</span></div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px;">레이어 구조</div>
+      <div style="font-size:11px;color:var(--muted);">
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);">① UI — Next.js + Tailwind</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);">② API Route — Protocol 주입</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);">③ AI Core — Claude API</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);">④ Image Processing</div>
+        <div style="padding:5px 0;">⑤ Vercel 배포</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:20px;">
+    <strong>Architecture Invariant:</strong> UI는 Claude API를 직접 호출하지 않는다. 모든 system prompt는 반드시 buildSystemPrompt()를 통해 주입된다. Protocol 파일은 <code style="font-family:monospace;">_context/</code> 디렉토리에만 존재한다.
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §4 — Loop A
+══════════════════════════════════════ -->
+<section id="loopa">
+  <div class="sec-header">
+    <div class="sec-num">Section 03</div>
+    <div class="sec-title">Loop A — Protocol 정적 검증 파이프라인</div>
+    <div class="sec-desc">Protocol 파일을 실제 API 호출 없이 정적으로 검증한다. AGENT A가 신규 Protocol 작성 직후, AGENT B가 V1 단계에서 실행한다.</div>
+  </div>
+
+  <div class="loop-wrap">
+    <div class="loop-box">
+      <div class="loop-title" style="color:var(--a);">Loop A — 4개 검증 체크</div>
+
+      <!-- CHECK 1 -->
+      <div class="step">
+        <div class="step-num" style="color:#60a5fa;border-color:#3b82f6;">1</div>
+        <div class="step-content">
+          <div class="step-label">CHECK 1 — 구조 완전성</div>
+          <div class="step-desc">6개 필수 섹션 존재 여부 + 하위 필드 전수 확인</div>
+          <ul class="step-sub">
+            <li>SYSTEM (노드명, 버전)</li>
+            <li>GOAL (1-3문장)</li>
+            <li>CONTEXT (Ontological Status, Operational Logic, Immutable Constants)</li>
+            <li>ROLE</li>
+            <li>ACTION PROTOCOL (Pre-Step + Step 1..N)</li>
+            <li>COMPLIANCE CHECK (Pre-flight, Post-generation, Failure Mode ≥2개 IF-THEN)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+
+      <!-- CHECK 2 -->
+      <div class="step">
+        <div class="step-num" style="color:#60a5fa;border-color:#3b82f6;">2</div>
+        <div class="step-content">
+          <div class="step-label">CHECK 2 — 간결성</div>
+          <div class="step-desc">토큰 수 ≤ 50,000 / 중복 탐지</div>
+          <ul class="step-sub">
+            <li>전체 Protocol + Knowledge Docs 합계 모델 컨텍스트 25% 이내</li>
+            <li>반복 지시 / 불필요한 예시 중복 탐지</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+
+      <!-- CHECK 3 -->
+      <div class="step">
+        <div class="step-num" style="color:#60a5fa;border-color:#3b82f6;">3</div>
+        <div class="step-content">
+          <div class="step-label">CHECK 3 — 내부 일관성</div>
+          <div class="step-desc">ACTION PROTOCOL ↔ COMPLIANCE CHECK 정렬</div>
+          <ul class="step-sub">
+            <li>각 Step에 대응하는 COMPLIANCE CHECK 존재 여부</li>
+            <li>Failure Mode 완전성</li>
+            <li>Knowledge Doc 지시 충돌 여부</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+
+      <!-- CHECK 4 -->
+      <div class="step">
+        <div class="step-num" style="color:#60a5fa;border-color:#3b82f6;">4</div>
+        <div class="step-content">
+          <div class="step-label">CHECK 4 — 오염 저항성 (Stage A2)</div>
+          <div class="step-desc">5개 오염 패턴 방어 확인 — 4/5 이상 통과 필수</div>
+          <ul class="step-sub">
+            <li>Input Pass-Through 방어</li>
+            <li>Geometry Modification 방어</li>
+            <li>Step Skipping 방어</li>
+            <li>Abstract Command 비번역 방어</li>
+            <li>Hallucination 방어</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="loop-verdict">
+        <div class="pass-box">✓ PASS — 4개 모두 통과 → Loop B 진입</div>
+        <div class="fail-box">✗ FAIL — 즉시 보고 → AGENT A 수정 요청</div>
+      </div>
+    </div>
+
+    <!-- Protocol 구조 -->
+    <div class="loop-box">
+      <div class="loop-title" style="color:var(--a2);">Protocol 필수 구조 (protocol-design-guide.md)</div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div class="phase-block" style="border-color:#3b82f640;">
+          <div class="phase-block-title" style="color:#60a5fa;">SYSTEM</div>
+          <div style="font-size:11px;color:var(--muted);">노드명 · 버전 선언</div>
+        </div>
+        <div class="phase-block" style="border-color:#3b82f640;">
+          <div class="phase-block-title" style="color:#60a5fa;">GOAL</div>
+          <div style="font-size:11px;color:var(--muted);">1-3문장 목적 기술</div>
+        </div>
+        <div class="phase-block" style="border-color:#8b5cf640;">
+          <div class="phase-block-title" style="color:#a78bfa;">CONTEXT</div>
+          <div style="font-size:11px;color:var(--muted);">Ontological Status (입력의 물리적 정체)<br>Operational Logic (동작 논리)<br>Immutable Constants (불변 상수 목록)</div>
+        </div>
+        <div class="phase-block" style="border-color:#8b5cf640;">
+          <div class="phase-block-title" style="color:#a78bfa;">ROLE</div>
+          <div style="font-size:11px;color:var(--muted);">에이전트 정체성 선언</div>
+        </div>
+        <div class="phase-block" style="border-color:#10b98140;">
+          <div class="phase-block-title" style="color:#34d399;">ACTION PROTOCOL</div>
+          <div style="font-size:11px;color:var(--muted);">Pre-Step (전처리)<br>Step 1..N (각 단계, 이전 단계 출력 참조 필수)</div>
+        </div>
+        <div class="phase-block" style="border-color:#f59e0b40;">
+          <div class="phase-block-title" style="color:#fbbf24;">COMPLIANCE CHECK</div>
+          <div style="font-size:11px;color:var(--muted);">Pre-flight (실행 전 조건)<br>Post-generation (출력 후 확인)<br>Failure Mode — 최소 2개 IF-THEN 분기</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;padding:10px 12px;background:var(--s2);border-radius:6px;font-size:11px;">
+        <div style="color:var(--muted);margin-bottom:4px;">Principle Protocol vs Knowledge Doc</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="color:#93c5fd;font-size:10px;margin-bottom:3px;">Principle Protocol</div>
+            <div style="color:var(--muted);">AI 행동 정의 (WHAT·HOW)</div>
+          </div>
+          <div>
+            <div style="color:#6ee7b7;font-size:10px;margin-bottom:3px;">Knowledge Doc</div>
+            <div style="color:var(--muted);">도메인 데이터, 테이블, 레퍼런스 (지식 제공)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §5 — Loop B
+══════════════════════════════════════ -->
+<section id="loopb">
+  <div class="sec-header">
+    <div class="sec-num">Section 04</div>
+    <div class="sec-title">Loop B — 실행 ↔ 검증 반복 파이프라인</div>
+    <div class="sec-desc">AGENT A(실행)와 AGENT B(검증)가 handoff 파일을 매개로 최대 5회 반복한다. AGENT B의 PASS가 나올 때까지 루프가 지속된다.</div>
+  </div>
+
+  <!-- 이터레이션 흐름 -->
+  <div class="iter-flow">
+    <div class="iter-box" style="border-color:#3b82f6;color:#93c5fd;">AGENT A<br><small style="font-size:10px;">Iteration 1<br>Build from scratch</small></div>
+    <div class="iter-loop">
+      <span class="iter-loop-arr">→</span>
+      <span class="iter-loop-label">handoff 파일</span>
+    </div>
+    <div class="iter-box" style="border-color:#8b5cf6;color:#c4b5fd;">AGENT B<br><small style="font-size:10px;">V1→V2→V3→V3.5→V4</small></div>
+    <div class="iter-loop">
+      <span class="iter-loop-arr">→</span>
+      <span class="iter-loop-label">결함 보고서</span>
+    </div>
+    <div class="iter-box" style="border-color:#3b82f6;color:#93c5fd;">AGENT A<br><small style="font-size:10px;">Iteration N<br>Fix defects</small></div>
+    <div style="display:flex;align-items:center;gap:6px;padding:0 8px;color:var(--muted);font-size:11px;">
+      <span>⟳ 최대 5회</span>
+    </div>
+    <div class="iter-box green">PASS<br><small style="font-size:10px;">DEPLOYMENT APPROVED</small></div>
+    <div class="iter-loop">
+      <span class="iter-loop-arr" style="color:#f87171;">↑</span>
+      <span class="iter-loop-label" style="color:#f87171;">5회 초과 FAIL</span>
+    </div>
+    <div class="iter-box red">인간 검토<br><small style="font-size:10px;">에스컬레이션</small></div>
+  </div>
+
+  <div class="loopb-flow">
+    <!-- AGENT A 컬럼 -->
+    <div class="loopb-col">
+      <div class="loopb-header exec">AGENT A — 실행 에이전트</div>
+
+      <div class="phase-block">
+        <div class="phase-block-title">SESSION START (3단계)</div>
+        <div class="check-item">이전 검증 보고서 존재 여부로 Iteration 차수 결정</div>
+        <div class="check-item">컨텍스트 파일 7개 순서대로 로드</div>
+        <div class="check-item">작업 계획 한 단락으로 선언 후 시작</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#3b82f640;">
+        <div class="phase-block-title" style="color:#60a5fa;">Iteration 1 — Build from Scratch</div>
+        <div class="check-item">product-spec 완성 여부 확인 (NodeContract 전 필드)</div>
+        <div class="check-item">Protocol 파일 작성 → _context/ 저장</div>
+        <div class="check-item">Loop A 자체 점검 (CHECK 1, 3 비공식 확인)</div>
+        <div class="check-item">Node App 구현: lib/prompt.ts · API Route · page.tsx</div>
+        <div class="check-item">handoff 파일 작성</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#f59e0b40;">
+        <div class="phase-block-title" style="color:#fbbf24;">Iteration N — Fix Defects</div>
+        <div class="check-item">최신 보고서 로드: loop-b-report-[node]-[date]-iter[N-1].md</div>
+        <div class="check-item">HIGH 결함 전부 수정 (완료 전 MID 진입 금지)</div>
+        <div class="check-item">MID 결함 수정 (범위 내)</div>
+        <div class="check-item">LOW 결함 처리 여부 기록</div>
+        <div class="check-item">handoff 파일 갱신</div>
+      </div>
+
+      <div class="phase-block">
+        <div class="phase-block-title">결함 레이어 분류</div>
+        <div class="check-item">Layer A — API call (system 파라미터 주입)</div>
+        <div class="check-item">Layer B — Protocol 구조 (누락 Step, Failure Mode)</div>
+        <div class="check-item">Layer C — Protocol 언어 (모호한 지시)</div>
+        <div class="check-item">Layer D — 코드 구현</div>
+      </div>
+    </div>
+
+    <!-- 핸드오프 화살표 -->
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 8px;">
+      <div class="handoff-arrow-inner">📄 handoff 파일<br><small style="font-size:10px;">loop-b-handoff-[node].md</small></div>
+      <div style="color:var(--muted);font-size:20px;">⇅</div>
+      <div class="handoff-arrow-inner" style="color:#f87171;border-color:#ef444460;">📋 결함 보고서<br><small style="font-size:10px;">loop-b-report-[node]-[date]-iter[N].md</small></div>
+    </div>
+
+    <!-- AGENT B 컬럼 -->
+    <div class="loopb-col">
+      <div class="loopb-header verif">AGENT B — 검증 에이전트 (Fresh Session)</div>
+
+      <div class="phase-block">
+        <div class="phase-block-title">SESSION START</div>
+        <div class="check-item">handoff 파일 읽기</div>
+        <div class="check-item">RELIABILITY.md · SECURITY.md 포함 7개 파일 로드</div>
+        <div class="check-item">역할 확인 선언 (Verification Agent, not Execution Agent)</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#8b5cf640;">
+        <div class="phase-block-title" style="color:#a78bfa;">V1 — Loop A 실행</div>
+        <div class="check-item">CHECK 1~4 전체 실행</div>
+        <div class="check-item">FAIL 시 V2 진입 금지, 즉시 보고</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#8b5cf640;">
+        <div class="phase-block-title" style="color:#a78bfa;">V2 — QUALITY_SCORE 체크리스트</div>
+        <div class="check-item">PCS = (Step별 COMPLIANCE CHECK) / 전체 Step × 100</div>
+        <div class="check-item">PCS ≥ 90 필수</div>
+        <div class="check-item">불변 상수 / 경계 해소 / 출력 명세 3개 차원</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#8b5cf640;">
+        <div class="phase-block-title" style="color:#a78bfa;">V3 — 구현 정적 분석</div>
+        <div class="check-item">buildSystemPrompt() 함수 존재·파라미터·반환값 확인</div>
+        <div class="check-item">API Route: system 파라미터, _context/ 로딩, null guard, timeout ≤30s, retry ≤2회 (RELIABILITY.md)</div>
+        <div class="check-item">Security: API 키 소스 미노출, Protocol 서버사이드, 입력 제한 (SECURITY.md)</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#f59e0b40;">
+        <div class="phase-block-title" style="color:#fbbf24;">V3.5 — Code Reviewer 분석</div>
+        <div class="check-item">code_quality_checker.py 실행 → static analysis</div>
+        <div class="check-item">pr_analyzer.py 실행 (git diff 있을 때)</div>
+        <div class="check-item">RELIABILITY.md · SECURITY.md 기준 교차 검토</div>
+        <div class="check-item">review_report_generator.py → 보고서 저장</div>
+      </div>
+
+      <div class="phase-block" style="border-color:#8b5cf640;">
+        <div class="phase-block-title" style="color:#a78bfa;">V4 — Stage B 시뮬레이션</div>
+        <div class="check-item">Test Case 1: 일반 입력</div>
+        <div class="check-item">Test Case 2: 엣지케이스 입력</div>
+        <div class="check-item">Test Case 3: 오염 탐지 입력</div>
+      </div>
+
+      <div style="background:var(--s2);border-radius:6px;padding:10px 12px;margin-top:4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">PASS 조건 (전부 충족)</div>
+        <div style="font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px;">
+          <span>V1 Loop A → PASS</span>
+          <span>V2 PCS ≥ 90 + 4개 차원 → PASS</span>
+          <span>V3 전체 체크 → PASS</span>
+          <span>V3.5 블로킹 없음 → PASS</span>
+          <span>V4 3개 케이스 → PASS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §6 — Agent C
+══════════════════════════════════════ -->
+<section id="agentc">
+  <div class="sec-header">
+    <div class="sec-num">Section 05</div>
+    <div class="sec-title">Agent C — 디자인 에이전트 빌드 시퀀스</div>
+    <div class="sec-desc">DESIGN.md + FRONTEND.md 기준을 준수하여 Next.js 프론트엔드를 구현한다. AGENT A의 API Route와 연동하고, 완료 후 AGENT B에 인계한다.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:#34d399;">로드 파일 순서</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#1a3a2a;color:#34d399;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px;min-width:20px;text-align:center;">1</span>
+            <span style="font-size:12px;color:var(--muted);">docs/DESIGN.md — 브랜드 원칙, 네이밍, UI 원칙</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#1a3a2a;color:#34d399;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px;min-width:20px;text-align:center;">2</span>
+            <span style="font-size:12px;color:var(--muted);">docs/FRONTEND.md — 기술 스택, 프로젝트 구조</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#1a3a2a;color:#34d399;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px;min-width:20px;text-align:center;">3</span>
+            <span style="font-size:12px;color:var(--muted);">_context/brand-guidelines.md — 노드별 브랜드</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#1a3a2a;color:#34d399;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px;min-width:20px;text-align:center;">4</span>
+            <span style="font-size:12px;color:var(--muted);">_context/design-style-guide.md — 컬러·타이포</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#1a3a2a;color:#34d399;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px;min-width:20px;text-align:center;">5</span>
+            <span style="font-size:12px;color:var(--muted);">_context/business-context.md — 타겟·포지션</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title" style="color:#34d399;">브랜드 컴플라이언스 체크리스트</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;">
+          <div>
+            <div style="font-size:10px;color:#34d399;font-weight:700;margin-bottom:5px;">Identity</div>
+            <div class="check-item">"Design Intelligence" 프레임</div>
+            <div class="check-item">노드명 kebab-case</div>
+            <div class="check-item">컴포넌트 PascalCase</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#34d399;font-weight:700;margin-bottom:5px;">Legal</div>
+            <div class="check-item">법적 보장 문구 배제</div>
+            <div class="check-item">"참고용 시각화" 워터마크</div>
+            <div class="check-item">결과물에 법적 효력 없음</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:#34d399;">빌드 시퀀스 7단계</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">1</div>
+            <div class="step-content"><div class="step-label">프로젝트 구조 확인</div><div class="step-desc">app/ · components/ · lib/ 디렉토리 존재 확인 또는 생성</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">2</div>
+            <div class="step-content"><div class="step-label">app/page.tsx 구현</div><div class="step-desc">입력 영역 → 실행 버튼 → 출력 영역 3단계 흐름 + 워터마크</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">3</div>
+            <div class="step-content"><div class="step-label">app/layout.tsx 구현</div><div class="step-desc">브랜드 폰트·색상 토큰, 메타 제목 kebab-case</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">4</div>
+            <div class="step-content"><div class="step-label">components/ 구현</div><div class="step-desc">InputPanel · ResultPanel · ErrorBanner + 노드별 추가 컴포넌트</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">5</div>
+            <div class="step-content"><div class="step-label">Tailwind CSS 스타일링</div><div class="step-desc">design-style-guide.md 컬러·타이포 적용, 모바일 퍼스트</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">6</div>
+            <div class="step-content"><div class="step-label">AGENT A 연동 검증</div><div class="step-desc">API Route 호출, 입출력 스키마 일치 확인, 에러 상태 처리</div></div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:#34d399;border-color:#10b981;font-size:10px;">7</div>
+            <div class="step-content"><div class="step-label">design-handoff 파일 작성</div><div class="step-desc">→ AGENT B 인계 (V3 Implementation Check)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §7 — 파일 역할 전체 목록
+══════════════════════════════════════ -->
+<section id="files">
+  <div class="sec-header">
+    <div class="sec-num">Section 06</div>
+    <div class="sec-title">Harness 파일 전체 역할 목록</div>
+    <div class="sec-desc">세션 시작 시 로드 순서와 각 파일이 어떤 에이전트에서 참조되는지 함께 기재.</div>
+  </div>
+
+  <div class="file-grid">
+    <!-- 루트 -->
+    <div class="file-group">
+      <div class="file-group-header">Harness/ — 루트 문서</div>
+      <div class="file-entry">
+        <div class="file-name">AGENTS.md</div>
+        <div class="file-role">에이전트 헌법. 3에이전트 체계 정의, 세션 루틴, 금지 행동 목록. 모든 세션 첫 번째 로드 파일. <span class="tag a">A</span><span class="tag b">B</span><span class="tag c">C</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">ARCHITECTURE.md</div>
+        <div class="file-role">10노드 시스템 전체 기술 명세. 레이어 경계, 데이터 흐름, 불변 제약 조건. <span class="tag a">A</span></div>
+      </div>
+    </div>
+
+    <!-- 핵심 표준 -->
+    <div class="file-group">
+      <div class="file-group-header">docs/ — 핵심 표준</div>
+      <div class="file-entry">
+        <div class="file-name">QUALITY_SCORE.md</div>
+        <div class="file-role">PCS 측정 기준 (≥90 필수), 4개 품질 차원 체크리스트. <span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">RELIABILITY.md</div>
+        <div class="file-role">API 안정성 기준 (timeout 30s, retry 2회), 3개 공통 실패 모드 처방. <span class="tag a">A</span><span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">SECURITY.md</div>
+        <div class="file-role">API 키 관리, Protocol 서버사이드 전용, 입력 검증 기준. <span class="tag a">A</span><span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">DESIGN.md</div>
+        <div class="file-role">브랜드 원칙, 네이밍 컨벤션, UI 3단계 흐름 원칙. <span class="tag c">C</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">FRONTEND.md</div>
+        <div class="file-role">기술 스택 (Next.js·Tailwind·TypeScript), 프로젝트 구조, buildSystemPrompt() 패턴, API Route 표준. <span class="tag a">A</span><span class="tag c">C</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">PRODUCT_SENSE.md</div>
+        <div class="file-role">제품 포지셔닝 "Design Intelligence", 타겟 세그먼트 우선순위, 기능 추가 의사결정 기준. (실행 에이전트 판단 기준)</div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">PLANS.md</div>
+        <div class="file-role">장기 로드맵 3단계 (Project-10 → Project-4 → Project-2), KPI 목표.</div>
+      </div>
+    </div>
+
+    <!-- 설계 철학 -->
+    <div class="file-group">
+      <div class="file-group-header">docs/design-docs/ — 설계 철학</div>
+      <div class="file-entry">
+        <div class="file-name">core-beliefs.md</div>
+        <div class="file-role">핵심 6원칙: Protocol-First / 물리적 현실 / Geometry Sanctuary / 구체적 명세 / 경계 추론 / Harness Engineering. 모든 기술 결정의 철학적 기반.</div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">protocol-design-guide.md</div>
+        <div class="file-role">Protocol 필수 구조 5섹션, 6개 오염 패턴 카탈로그, Stage A1·A2·B 검증 파이프라인. <span class="tag a">A</span><span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">index.md</div>
+        <div class="file-role">설계 원칙 인덱스. 읽기 순서: core-beliefs.md → protocol-design-guide.md.</div>
+      </div>
+    </div>
+
+    <!-- 에이전트 지침 -->
+    <div class="file-group">
+      <div class="file-group-header">docs/references/ — 에이전트 지침</div>
+      <div class="file-entry">
+        <div class="file-name">loop-a-verification-agent.txt</div>
+        <div class="file-role">Loop A 검증 에이전트 전체 지침. 4개 체크 + 보고서 포맷. <span class="tag a">A</span><span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">loop-b-execution-agent.txt</div>
+        <div class="file-role">AGENT A 전체 지침. Iteration 1·N 빌드 시퀀스, handoff 포맷. <span class="tag a">A</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">loop-b-verification-agent.txt</div>
+        <div class="file-role">AGENT B 전체 지침. V1→V2→V3→V3.5→V4 검증 시퀀스, 보고서 포맷, PASS 조건. <span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">loop-c-design-agent.txt</div>
+        <div class="file-role">AGENT C 전체 지침. 빌드 7단계, 브랜드 컴플라이언스 체크, design-handoff 포맷. <span class="tag c">C</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">api-patterns-llms.txt</div>
+        <div class="file-role">5개 API 패턴 레퍼런스: buildSystemPrompt, 이미지 입력, Protocol 로딩, 재시도 백오프, 환경 설정. <span class="tag a">A</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">protocol-patterns-llms.txt</div>
+        <div class="file-role">6개 Protocol 패턴: 존재론적 앵커링, 불변 상수, 좌표 변환, 사각지대 추론, Step 의존 체인, COMPLIANCE CHECK 구조. <span class="tag a">A</span></div>
+      </div>
+    </div>
+
+    <!-- 실행 계획 -->
+    <div class="file-group">
+      <div class="file-group-header">docs/exec-plans/ — 작업 관리</div>
+      <div class="file-entry">
+        <div class="file-name">active/*.md</div>
+        <div class="file-role">진행 중인 노드별 실행 계획 (living document). handoff 파일, 검증 보고서, 코드리뷰 보고서도 이 디렉토리에 저장. <span class="tag a">A</span><span class="tag b">B</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">completed/*.md</div>
+        <div class="file-role">완료된 실행 계획 아카이브. 삭제 금지, completed/로 이동.</div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">tech-debt-tracker.md</div>
+        <div class="file-role">기술 부채 목록. 미해결/해결됨 분류.</div>
+      </div>
+    </div>
+
+    <!-- 노드 스펙 -->
+    <div class="file-group">
+      <div class="file-group-header">docs/product-specs/ — 노드 계약</div>
+      <div class="file-entry">
+        <div class="file-name">index.md</div>
+        <div class="file-role">전체 노드 스펙 인덱스. 알려진 실패 패턴 등록 프로세스. <span class="tag a">A</span></div>
+      </div>
+      <div class="file-entry">
+        <div class="file-name">node-spec-template.md</div>
+        <div class="file-role">NodeContract 인터페이스 템플릿: 입출력 계약, Protocol 구성, 컴플라이언스 체크리스트, 버전 히스토리. <span class="tag a">A</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ══════════════════════════════════════
+     §8 — 품질 기준
+══════════════════════════════════════ -->
+<section id="quality">
+  <div class="sec-header">
+    <div class="sec-num">Section 07</div>
+    <div class="sec-title">품질 기준 (QUALITY_SCORE.md)</div>
+    <div class="sec-desc">Protocol Compliance Score(PCS) ≥ 90 이상 달성 시에만 배포를 승인한다.</div>
+  </div>
+
+  <div class="quality-grid">
+    <div class="q-card">
+      <div class="q-card-title">Protocol Compliance</div>
+      <div class="pcs-bar"><div class="pcs-fill" style="width:90%;"></div></div>
+      <div class="pcs-labels"><span>0</span><span>기준: 90+</span><span>100</span></div>
+      <div style="margin-top:10px;">
+        <div class="q-item">Pre-Step 존재·비어있지 않음</div>
+        <div class="q-item">각 Step에 검증 가능한 출력 기술</div>
+        <div class="q-item">COMPLIANCE CHECK가 모든 Step에 매핑</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--a3);">PCS = (CC 매핑 Step / 전체 Step) × 100</div>
+      </div>
+    </div>
+    <div class="q-card">
+      <div class="q-card-title">Immutable Constants</div>
+      <div class="q-item">CONTEXT에 선언된 모든 불변 상수</div>
+      <div class="q-item">COMPLIANCE CHECK Post-generation에 등재</div>
+      <div class="q-item">Geometry Sanctuary 원칙 준수</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">건물 비율·구조·형태는 어떤 노드에서도 변경 불가</div>
+    </div>
+    <div class="q-card">
+      <div class="q-card-title">Boundary Resolution</div>
+      <div class="q-item">범위 밖 입력 처리 Failure Mode ≥ 1</div>
+      <div class="q-item">비가시·모호 영역 처리 Failure Mode ≥ 1</div>
+      <div class="q-item">"원본 반환 금지" 명시</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">거부 또는 원본 반환 대신 반드시 추론하여 완성</div>
+    </div>
+    <div class="q-card">
+      <div class="q-card-title">Output-Specific</div>
+      <div class="q-item">product-spec 출력 계약 필드 반영</div>
+      <div class="q-item">출력 포맷 타입 일치 (이미지/텍스트/구조화)</div>
+      <div class="q-item">워터마크 자동 삽입</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">법규·구조 보장 문구 전면 배제</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+    <div class="callout green">
+      <strong>6개 핵심 설계 원칙 (core-beliefs.md)</strong><br>
+      <span style="font-size:11px;color:var(--muted);">
+        1 Protocol-First — 산출물 품질의 천장은 Protocol이 결정<br>
+        2 Physical Reality — 입력은 "완성된 현실"의 재렌더링<br>
+        3 Geometry Sanctuary — 건물 형태는 불변<br>
+        4 Concrete Specification — 추상 명령 → 구체 파라미터<br>
+        5 Boundary Inference — 거부 없이 항상 추론 완성<br>
+        6 Harness Engineering — 세션 간 일관성 보장
+      </span>
+    </div>
+    <div class="callout">
+      <strong>장기 제품 로드맵 (PLANS.md)</strong><br>
+      <span style="font-size:11px;color:var(--muted);">
+        현재 · Project-10 — 10개 독립 노드 앱, 개인 사용자<br>
+        중기 · Project-4 — 4개 통합 웹서비스, 전문가 MAU<br>
+        장기 · Project-2 — BIM 파라미터 + 템플릿 마켓, SaaS<br><br>
+        타겟: 1인·중소 설계사 (Primary) → 브랜딩 에이전시 → 건축학생 → 건축주
+      </span>
+    </div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="wrap">
+    CAI / CRE-TE CO.,LTD. &nbsp;·&nbsp; Harness 전체 로드맵 &nbsp;·&nbsp; Generated 2026-04-14<br>
+    <span style="font-size:10px;">COPYRIGHTS 2026. CRE-TE CO.,LTD. ALL RIGHTS RESERVED.</span>
+  </div>
+</footer>
+
+</body>
+</html>

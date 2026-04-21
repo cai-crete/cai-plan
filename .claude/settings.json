@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \".claude/hooks/session-init.sh\"",
+            "statusMessage": "세션 초기화 중 (AGENTS.md · progress · exec-plan 확인)..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \".claude/plugins/ralph-wiggum/hooks/stop-hook.sh\"",
+            "statusMessage": "Ralph loop 상태 확인 중..."
+          },
+          {
+            "type": "command",
+            "command": "bash \".claude/hooks/progress-remind.sh\"",
+            "statusMessage": "Progress 저장 알림..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d);const p=(j.tool_input||{}).file_path||'';if(/protocol-.*\\.txt/.test(p)){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:'\\u26a0\\ufe0f LOOP A REQUIRED: Protocol file modified. Load docs/references/loop-a-verification-agent.txt and run all 4 checks before Stage B. Do not write the handoff file until OVERALL VERDICT: PASS.'}}))}});\" 2>/dev/null || true",
+            "statusMessage": "Protocol 파일 감지 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d);const p=(j.tool_input||{}).file_path||'';if(/loop-b-handoff-.*\\.md/.test(p)){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:'\\ud83d\\udd0d LOOP B REQUIRED: Handoff file detected. Load docs/references/loop-b-verification-agent.txt and run /code-reviewer to verify code integrity before issuing PASS/FAIL.'}}))}});\" 2>/dev/null || true",
+            "statusMessage": "Loop B 핸드오프 감지 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
