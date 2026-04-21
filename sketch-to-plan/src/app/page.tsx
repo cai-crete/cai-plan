@@ -213,6 +213,23 @@ export default function App() {
   const [sourceArtboardSize, setSourceArtboardSize] = useState<{ width: number; height: number } | null>(null);
   const [parameterReport, setParameterReport] = useState<string | null>(null);
 
+  // Sync sidebar state with selected item
+  useEffect(() => {
+    if (selectedItemIds.length === 0) {
+      setParameterReport(null);
+      setFloorType('');
+      setGridModule(4000);
+      return;
+    }
+    const item = canvasItems.find(i => i.id === selectedItemIds[0]);
+    if (item?.type === 'sketch_generated' && item.parameters) {
+      setParameterReport((item.parameters.parameterReport as string) ?? null);
+      if (item.parameters.floorType) setFloorType(item.parameters.floorType as string);
+      if (item.parameters.gridModule) setGridModule(item.parameters.gridModule as number);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItemIds]);
+
   // Plan generation hook
   const { isLoading: isGenerating, generatedPlanImage, roomAnalysis, generate, reset: resetGeneration } = usePlanGeneration();
 
@@ -280,6 +297,11 @@ export default function App() {
       src: `data:image/png;base64,${generatedPlanImage}`,
       zIndex: canvasItems.length,
       layerType: 'sketch',
+      parameters: {
+        parameterReport: roomAnalysis ?? null,
+        floorType,
+        gridModule,
+      },
     };
 
     setHistoryStates(h => [...h, canvasItems]);

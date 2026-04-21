@@ -54,6 +54,8 @@ export async function POST(req: NextRequest) {
     user_prompt?: string;
     floor_type?: string;
     grid_module?: number;
+    artboard_width?: number;
+    artboard_height?: number;
   };
 
   try {
