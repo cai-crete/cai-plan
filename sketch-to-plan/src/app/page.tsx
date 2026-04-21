@@ -283,32 +283,39 @@ export default function App() {
   useEffect(() => {
     if (!generatedPlanImage) return;
 
-    const planW = sourceArtboardSize?.width ?? 640;
-    const planH = sourceArtboardSize?.height ?? 640;
+    const src = `data:image/png;base64,${generatedPlanImage}`;
     const ts = Date.now();
+    const fallbackW = sourceArtboardSize?.width ?? 640;
+    const fallbackH = sourceArtboardSize?.height ?? 640;
 
-    const planItem: CanvasItem = {
-      id: `plan-${ts}`,
-      type: 'sketch_generated',
-      x: 60,
-      y: -planH / 2,
-      width: planW,
-      height: planH,
-      src: `data:image/png;base64,${generatedPlanImage}`,
-      zIndex: canvasItems.length,
-      layerType: 'sketch',
-      parameters: {
-        parameterReport: roomAnalysis ?? null,
-        floorType,
-        gridModule,
-      },
+    const place = (imgW: number, imgH: number) => {
+      const planItem: CanvasItem = {
+        id: `plan-${ts}`,
+        type: 'sketch_generated',
+        x: 60,
+        y: -imgH / 2,
+        width: imgW,
+        height: imgH,
+        src,
+        zIndex: canvasItemsRef.current.length,
+        layerType: 'sketch',
+        parameters: {
+          parameterReport: roomAnalysis ?? null,
+          floorType,
+          gridModule,
+        },
+      };
+      setHistoryStates(h => [...h, canvasItemsRef.current]);
+      setCanvasItems(prev => [...prev, planItem]);
+      if (roomAnalysis) setParameterReport(roomAnalysis);
+      resetGeneration();
+      setPlanPrompt('');
     };
 
-    setHistoryStates(h => [...h, canvasItems]);
-    setCanvasItems(prev => [...prev, planItem]);
-    if (roomAnalysis) setParameterReport(roomAnalysis);
-    resetGeneration();
-    setPlanPrompt('');
+    const img = new Image();
+    img.onload = () => place(img.naturalWidth, img.naturalHeight);
+    img.onerror = () => place(fallbackW, fallbackH);
+    img.src = src;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedPlanImage]);
 
@@ -974,6 +981,8 @@ export default function App() {
         userPrompt: planPrompt,
         floorType,
         gridModule,
+        artboardWidth: item.width,
+        artboardHeight: item.height,
       }
     );
   }, [planPrompt, floorType, gridModule, generate]);
@@ -1226,7 +1235,7 @@ export default function App() {
                   ) : (
                     <>
                       {item.src && (
-                        <img src={item.src} alt="" className="w-full h-full object-cover" draggable={false} />
+                        <img src={item.src} alt="" className="w-full h-full object-fill" draggable={false} />
                       )}
                       {item.text && (
                         <div className="p-1 text-sm">{item.text}</div>

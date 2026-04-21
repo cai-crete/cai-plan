@@ -70,6 +70,8 @@ export async function POST(req: NextRequest) {
     user_prompt = '',
     floor_type = 'RESIDENTIAL',
     grid_module = 4000,
+    artboard_width,
+    artboard_height,
   } = body;
 
   if (!sketch_image) {
@@ -181,6 +183,10 @@ export async function POST(req: NextRequest) {
   let roomAnalysis = '';
 
   try {
+    const aspectRatioLine = (artboard_width && artboard_height)
+      ? `출력 이미지의 가로:세로 비율은 반드시 ${artboard_width}:${artboard_height} (입력 스케치와 동일)이어야 합니다.`
+      : '';
+
     const generationPrompt = [
       '섹션 4 Step 3~4 (Architectural Drafter → Interior Designer) 및 섹션 5~7을 실행하여 CAD 스타일 2D Top-down 건축 평면도를 생성하세요.',
       '',
@@ -192,6 +198,7 @@ export async function POST(req: NextRequest) {
       '',
       `건물 용도: ${floor_type}`,
       `구조 그리드 모듈: ${grid_module}mm`,
+      ...(aspectRatioLine ? [aspectRatioLine] : []),
     ].join('\n');
 
     const makeGenerationCall = (modelName: string) => () => {

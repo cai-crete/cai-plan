@@ -6,6 +6,8 @@ export interface PlanGenerationParams {
   userPrompt?: string;
   floorType?: string;
   gridModule?: number;
+  artboardWidth?: number;
+  artboardHeight?: number;
 }
 
 export interface PlanGenerationResult {
@@ -66,6 +68,8 @@ export function usePlanGeneration(): UsePlanGenerationReturn {
             user_prompt: params.userPrompt ?? '',
             floor_type: params.floorType ?? 'RESIDENTIAL',
             grid_module: params.gridModule ?? 4000,
+            artboard_width: params.artboardWidth,
+            artboard_height: params.artboardHeight,
           }),
         });
 
