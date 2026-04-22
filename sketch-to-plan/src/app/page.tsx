@@ -571,22 +571,15 @@ export default function App() {
 
   // ─── Image transform confirm / cancel ───
   const handleImageTransformConfirm = useCallback(() => {
-    setHistoryStates(h => [...h, canvasItemsRef.current]);
-    setRedoStates([]);
     imageEditSnapshot.current = null;
     setImageEditingId(null);
   }, []);
 
   const handleImageTransformCancel = useCallback(() => {
-    const id = imageEditingIdRef.current;
-    // snapshot이 null이면 contentTransform을 변경하지 않고 편집 모드만 종료
-    if (id && imageEditSnapshot.current !== null && imageEditSnapshot.current !== undefined) {
-      setCanvasItems(prev => prev.map(i =>
-        i.id === id ? { ...i, contentTransform: imageEditSnapshot.current! } : i
-      ));
-    }
+    // 빈 캔버스 클릭과 동일: 편집 모드 확정 종료 + 선택 해제
     imageEditSnapshot.current = null;
     setImageEditingId(null);
+    setSelectedItemIds([]);
   }, []);
 
   const handleDownloadItem = useCallback(async (item: CanvasItem) => {
@@ -706,6 +699,8 @@ export default function App() {
         const pt = getCanvasCoords(e.clientX, e.clientY);
         const cx = item.x + ct.x + ct.width / 2;
         const cy = item.y + ct.y + ct.height / 2;
+        setHistoryStates(h => [...h, canvasItemsRef.current]);
+        setRedoStates([]);
         isTransformingImage.current = true;
         imageTransformOp.current = 'rotate';
         imageTransformItemId.current = id;
@@ -735,6 +730,8 @@ export default function App() {
         const dx = parseInt(target.dataset.dx ?? '0');
         const dy = parseInt(target.dataset.dy ?? '0');
         const pt = getCanvasCoords(e.clientX, e.clientY);
+        setHistoryStates(h => [...h, canvasItemsRef.current]);
+        setRedoStates([]);
         isTransformingImage.current = true;
         imageTransformOp.current = 'resize';
         imageTransformItemId.current = id;
@@ -755,6 +752,8 @@ export default function App() {
       if (item?.contentTransform) {
         const ct = item.contentTransform;
         const pt = getCanvasCoords(e.clientX, e.clientY);
+        setHistoryStates(h => [...h, canvasItemsRef.current]);
+        setRedoStates([]);
         isTransformingImage.current = true;
         imageTransformOp.current = 'move';
         imageTransformItemId.current = id;
@@ -818,6 +817,12 @@ export default function App() {
             }
             imageEditSnapshot.current = ct; // 항상 올바른 값 캡처
             setImageEditingId(itemId);
+            canvasElRef.current?.setPointerCapture(e.pointerId);
+            return;
+          }
+
+          // 이미지 편집 모드 중인 아트보드 배경 클릭 → 아트보드 이동 차단
+          if (imageEditingIdRef.current === itemId) {
             canvasElRef.current?.setPointerCapture(e.pointerId);
             return;
           }
@@ -1426,14 +1431,7 @@ export default function App() {
                   onClick={e => { e.stopPropagation(); setSelectedItemIds([item.id]); }}
                 >
                   {(item.type === 'artboard' || item.type === 'upload') ? (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        transform: `translate(${item.contentOffset?.x ?? 0}px, ${item.contentOffset?.y ?? 0}px) scale(${(item.contentScale ?? 100) / 100})`,
-                        transformOrigin: 'top left',
-                      }}
-                    >
+                    <>
                       {item.src && (() => {
                         const ct = item.contentTransform;
                         if (ct) {
@@ -1545,6 +1543,15 @@ export default function App() {
                         );
                       })()}
 
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          transform: `translate(${item.contentOffset?.x ?? 0}px, ${item.contentOffset?.y ?? 0}px) scale(${(item.contentScale ?? 100) / 100})`,
+                          transformOrigin: 'top left',
+                          pointerEvents: imageEditingId === item.id ? 'none' : undefined,
+                        }}
+                      >
                       {/* Artboard internal grid */}
                       <div
                         className="absolute inset-0 pointer-events-none"
@@ -1611,7 +1618,8 @@ export default function App() {
                           pointerEvents: 'none',
                         }}
                       />
-                    </div>
+                      </div>
+                    </>
                   ) : (
                     <>
                       {item.src && (
@@ -1840,6 +1848,29 @@ export default function App() {
                             <svg width={ctrlIconSize} height={ctrlIconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                             </svg>
+                          </button>
+                          {/* Delete */}
+                          <button
+                            title="삭제"
+                            style={{
+                              width: `${ctrlBtnSize}px`, height: `${ctrlBtnSize}px`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: `${999 / barScale}px`,
+                              background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                              color: '#ef4444',
+                            }}
+                            onClick={() => {
+                              setHistoryStates(h => [...h, canvasItemsRef.current]);
+                              setRedoStates([]);
+                              setCanvasItems(prev => prev.map(i =>
+                                i.id === id ? { ...i, src: undefined, contentTransform: undefined } : i
+                              ));
+                              imageEditSnapshot.current = null;
+                              setImageEditingId(null);
+                              setSelectedItemIds([]);
+                            }}
+                          >
+                            <Trash2 style={{ width: `${ctrlIconSize}px`, height: `${ctrlIconSize}px` }} />
                           </button>
                         </div>
                       )}
