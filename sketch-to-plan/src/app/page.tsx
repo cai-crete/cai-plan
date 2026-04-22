@@ -14,7 +14,7 @@ import AppHeader from '@/components/AppHeader';
 import RightSidebar from '@/components/RightSidebar';
 import { usePlanGeneration } from '@/hooks/usePlanGeneration';
 import type { CanvasItem, CanvasMode, Point } from '@/types/canvas';
-import { saveImageToDB, loadImageFromDB } from '@/lib/imageDB';
+import { saveImageToDB, loadImageFromDB, deleteImageFromDB } from '@/lib/imageDB';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -81,9 +81,12 @@ function lsLoadView(): { zoom: number; offset: Point } {
   } catch { return { zoom: 100, offset: { x: 0, y: 0 } }; }
 }
 
-// Base64 src는 IndexedDB에 저장 — localStorage에는 구조 데이터만 기록
+// Base64 src와 parameterReport는 IndexedDB에 저장 — localStorage에는 구조 데이터만 기록
 function lsSaveItems(items: CanvasItem[]) {
-  const stripped = items.map(i => ({ ...i, src: i.src?.startsWith('data:') ? '' : i.src }));
+  const stripped = items.map(i => {
+    const params = i.parameters ? { ...i.parameters, parameterReport: undefined } : undefined;
+    return { ...i, src: i.src?.startsWith('data:') ? '' : i.src, parameters: params };
+  });
   try { localStorage.setItem(LS_ITEMS, JSON.stringify(stripped)); } catch { /* quota exceeded */ }
 }
 
@@ -154,20 +157,38 @@ export default function App() {
     isRestoredRef.current = true;
 
     (async () => {
-      const updates: { id: string; src: string }[] = [];
+      const updates: { id: string; src?: string; parameterReport?: string }[] = [];
       for (const item of items) {
+        const update: { id: string; src?: string; parameterReport?: string } = { id: item.id };
         if (!item.src) {
           const data = await loadImageFromDB(item.id);
-          if (data) updates.push({ id: item.id, src: data });
+          if (data) update.src = data;
         }
+        if (item.type === 'sketch_generated') {
+          const report = await loadImageFromDB(`report_${item.id}`);
+          if (report) update.parameterReport = report;
+        }
+        if (update.src || update.parameterReport) updates.push(update);
       }
       if (updates.length > 0) {
         setCanvasItems(prev =>
           prev.map(i => {
             const u = updates.find(u => u.id === i.id);
-            return u ? { ...i, src: u.src } : i;
+            if (!u) return i;
+            const merged = u.src ? { ...i, src: u.src } : { ...i };
+            if (u.parameterReport) {
+              merged.parameters = { ...merged.parameters, parameterReport: u.parameterReport };
+            }
+            return merged;
           })
         );
+        // 복원 완료 시점에 선택된 아이템이 parameterReport를 받았다면 사이드바 재동기화
+        // (selectedItemIds sync effect는 selectedItemIds 변경 시에만 재실행되므로 여기서 직접 반영)
+        const selId = selectedItemIdsRef.current[0];
+        if (selId) {
+          const u = updates.find(u => u.id === selId && u.parameterReport);
+          if (u?.parameterReport) setParameterReport(u.parameterReport);
+        }
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,17 +242,22 @@ export default function App() {
       setGridModule(4000);
       return;
     }
-    const item = canvasItems.find(i => i.id === selectedItemIds[0]);
+    const item = canvasItemsRef.current.find(i => i.id === selectedItemIds[0]);
     if (item?.type === 'sketch_generated' && item.parameters) {
-      setParameterReport((item.parameters.parameterReport as string) ?? null);
+      setParameterReport((item.parameters.parameterReport as string) || null);
       if (item.parameters.floorType) setFloorType(item.parameters.floorType as string);
       if (item.parameters.gridModule) setGridModule(item.parameters.gridModule as number);
+    } else {
+      setParameterReport(null);
+      setFloorType('');
+      setGridModule(4000);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItemIds]);
 
   // Plan generation hook
   const { isLoading: isGenerating, generatedPlanImage, roomAnalysis, generate, reset: resetGeneration } = usePlanGeneration();
+  const roomAnalysisRef = useRef<string | null>(null);
+  useEffect(() => { roomAnalysisRef.current = roomAnalysis; }, [roomAnalysis]);
 
   const [generateWarning, setGenerateWarning] = useState<string | null>(null);
 
@@ -269,6 +295,26 @@ export default function App() {
   const contentPanArtboardId = useRef<string | null>(null);
   const contentPanStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // Image transform editing state
+  const [imageEditingId, setImageEditingId] = useState<string | null>(null);
+  const imageEditingIdRef = useRef<string | null>(null);
+  useEffect(() => { imageEditingIdRef.current = imageEditingId; }, [imageEditingId]);
+  // snapshot of contentTransform when entering edit mode (for cancel rollback)
+  const imageEditSnapshot = useRef<CanvasItem['contentTransform'] | null>(null);
+
+  // Image transform (move/resize/rotate within artboard)
+  type ImageTransformOp = 'move' | 'resize' | 'rotate';
+  const isTransformingImage = useRef(false);
+  const imageTransformOp = useRef<ImageTransformOp>('move');
+  const imageTransformItemId = useRef<string | null>(null);
+  // resize: axis flags
+  const imageResizeAxis = useRef({ dx: 0, dy: 0 }); // -1|0|1
+  // shared start snapshot
+  const imageTransformStart = useRef({
+    ptX: 0, ptY: 0,
+    tx: 0, ty: 0, tw: 0, th: 0, tr: 0, // contentTransform at drag start
+  });
+
   // Resize refs
   const isResizingItem = useRef(false);
   const resizeCorner = useRef({ dx: 1, dy: 1 });
@@ -283,39 +329,55 @@ export default function App() {
   useEffect(() => {
     if (!generatedPlanImage) return;
 
-    const src = `data:image/png;base64,${generatedPlanImage}`;
+    const rawSrc = `data:image/png;base64,${generatedPlanImage}`;
     const ts = Date.now();
-    const fallbackW = sourceArtboardSize?.width ?? 640;
-    const fallbackH = sourceArtboardSize?.height ?? 640;
+    const targetW = sourceArtboardSize?.width ?? 640;
+    const targetH = sourceArtboardSize?.height ?? 640;
 
-    const place = (imgW: number, imgH: number) => {
+    const placeItem = (finalSrc: string) => {
+      const planItemId = `plan-${ts}`;
       const planItem: CanvasItem = {
-        id: `plan-${ts}`,
+        id: planItemId,
         type: 'sketch_generated',
         x: 60,
-        y: -imgH / 2,
-        width: imgW,
-        height: imgH,
-        src,
+        y: -targetH / 2,
+        width: targetW,
+        height: targetH,
+        src: finalSrc,
         zIndex: canvasItemsRef.current.length,
         layerType: 'sketch',
         parameters: {
-          parameterReport: roomAnalysis ?? null,
+          parameterReport: roomAnalysisRef.current || null,
           floorType,
           gridModule,
         },
       };
+      if (roomAnalysisRef.current) saveImageToDB(`report_${planItemId}`, roomAnalysisRef.current);
       setHistoryStates(h => [...h, canvasItemsRef.current]);
       setCanvasItems(prev => [...prev, planItem]);
-      if (roomAnalysis) setParameterReport(roomAnalysis);
+      if (roomAnalysisRef.current) setParameterReport(roomAnalysisRef.current);
       resetGeneration();
       setPlanPrompt('');
     };
 
     const img = new Image();
-    img.onload = () => place(img.naturalWidth, img.naturalHeight);
-    img.onerror = () => place(fallbackW, fallbackH);
-    img.src = src;
+    img.onload = () => {
+      // Fit generated image into source artboard dimensions (letterbox, white bg)
+      const offscreen = document.createElement('canvas');
+      offscreen.width = targetW;
+      offscreen.height = targetH;
+      const ctx = offscreen.getContext('2d');
+      if (!ctx) { placeItem(rawSrc); return; }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetW, targetH);
+      const s = Math.min(targetW / img.naturalWidth, targetH / img.naturalHeight);
+      const drawW = img.naturalWidth * s;
+      const drawH = img.naturalHeight * s;
+      ctx.drawImage(img, (targetW - drawW) / 2, (targetH - drawH) / 2, drawW, drawH);
+      placeItem(offscreen.toDataURL('image/png'));
+    };
+    img.onerror = () => placeItem(rawSrc);
+    img.src = rawSrc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedPlanImage]);
 
@@ -504,6 +566,26 @@ export default function App() {
     setSelectedItemIds(prev => prev.filter(s => s !== id));
     pixelRestoredRef.current.delete(id);
     canvasDprInitRef.current.delete(id);
+    deleteImageFromDB(`report_${id}`);
+  }, []);
+
+  // ─── Image transform confirm / cancel ───
+  const handleImageTransformConfirm = useCallback(() => {
+    setHistoryStates(h => [...h, canvasItemsRef.current]);
+    setRedoStates([]);
+    imageEditSnapshot.current = null;
+    setImageEditingId(null);
+  }, []);
+
+  const handleImageTransformCancel = useCallback(() => {
+    const id = imageEditingIdRef.current;
+    if (id && imageEditSnapshot.current !== undefined) {
+      setCanvasItems(prev => prev.map(i =>
+        i.id === id ? { ...i, contentTransform: imageEditSnapshot.current ?? undefined } : i
+      ));
+    }
+    imageEditSnapshot.current = null;
+    setImageEditingId(null);
   }, []);
 
   const handleDownloadItem = useCallback(async (item: CanvasItem) => {
@@ -554,8 +636,29 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
-      setHistoryStates(h => [...h, canvasItemsRef.current]);
-      setCanvasItems(prev => prev.map(item => item.id === id ? { ...item, src } : item));
+      const imgEl = new Image();
+      imgEl.onload = () => {
+        setHistoryStates(h => [...h, canvasItemsRef.current]);
+        setCanvasItems(prev => prev.map(item => {
+          if (item.id !== id) return item;
+          // fit-contain within artboard, centered
+          const s = Math.min(item.width / imgEl.naturalWidth, item.height / imgEl.naturalHeight);
+          const fitW = imgEl.naturalWidth * s;
+          const fitH = imgEl.naturalHeight * s;
+          return {
+            ...item,
+            src,
+            contentTransform: {
+              x: (item.width - fitW) / 2,
+              y: (item.height - fitH) / 2,
+              width: fitW,
+              height: fitH,
+              rotation: 0,
+            },
+          };
+        }));
+      };
+      imgEl.src = src;
     };
     reader.readAsDataURL(file);
     pendingReplaceArtboardId.current = null;
@@ -592,6 +695,77 @@ export default function App() {
       return;
     }
 
+    // Image transform handle detection (rotate / resize within artboard)
+    if (canvasMode === 'select' && target.classList.contains('img-rotate-handle')) {
+      e.stopPropagation();
+      const id = imageEditingIdRef.current;
+      const item = id ? canvasItemsRef.current.find(i => i.id === id) : null;
+      if (item?.contentTransform) {
+        const ct = item.contentTransform;
+        const pt = getCanvasCoords(e.clientX, e.clientY);
+        const cx = item.x + ct.x + ct.width / 2;
+        const cy = item.y + ct.y + ct.height / 2;
+        isTransformingImage.current = true;
+        imageTransformOp.current = 'rotate';
+        imageTransformItemId.current = id;
+        imageTransformStart.current = {
+          ptX: pt.x, ptY: pt.y,
+          tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+        };
+        // store center for rotate calc
+        (canvasElRef.current as HTMLElement & { _rotCx?: number; _rotCy?: number })._rotCx = cx;
+        (canvasElRef.current as HTMLElement & { _rotCy?: number })._rotCy = cy;
+        canvasElRef.current?.setPointerCapture(e.pointerId);
+        // rotate 커서 활성화
+        if (canvasElRef.current) {
+          const rotateCursorUrl = "url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath d=\'M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z\' fill=\'%23f97316\' stroke=\'white\' stroke-width=\'0.5\'/%3E%3C/svg%3E') 12 12, grabbing";
+          canvasElRef.current.style.cursor = rotateCursorUrl;
+        }
+      }
+      return;
+    }
+
+    if (canvasMode === 'select' && target.classList.contains('img-resize-handle')) {
+      e.stopPropagation();
+      const id = imageEditingIdRef.current;
+      const item = id ? canvasItemsRef.current.find(i => i.id === id) : null;
+      if (item?.contentTransform) {
+        const ct = item.contentTransform;
+        const dx = parseInt(target.dataset.dx ?? '0');
+        const dy = parseInt(target.dataset.dy ?? '0');
+        const pt = getCanvasCoords(e.clientX, e.clientY);
+        isTransformingImage.current = true;
+        imageTransformOp.current = 'resize';
+        imageTransformItemId.current = id;
+        imageResizeAxis.current = { dx, dy };
+        imageTransformStart.current = {
+          ptX: pt.x, ptY: pt.y,
+          tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+        };
+        canvasElRef.current?.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
+
+    if (canvasMode === 'select' && target.classList.contains('img-move-area')) {
+      e.stopPropagation();
+      const id = imageEditingIdRef.current;
+      const item = id ? canvasItemsRef.current.find(i => i.id === id) : null;
+      if (item?.contentTransform) {
+        const ct = item.contentTransform;
+        const pt = getCanvasCoords(e.clientX, e.clientY);
+        isTransformingImage.current = true;
+        imageTransformOp.current = 'move';
+        imageTransformItemId.current = id;
+        imageTransformStart.current = {
+          ptX: pt.x, ptY: pt.y,
+          tx: ct.x, ty: ct.y, tw: ct.width, th: ct.height, tr: ct.rotation,
+        };
+        canvasElRef.current?.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
+
     // Resize handle detection
     if (canvasMode === 'select' && target.classList.contains('resize-handle')) {
       const dx = parseInt(target.dataset.dx ?? '1');
@@ -625,6 +799,35 @@ export default function App() {
         const item = canvasItemsRef.current.find(i => i.id === itemId);
         if (item) {
           e.preventDefault();
+
+          // 이미 선택된 artboard with src → 이미지 편집 모드 진입
+          if (
+            item.type === 'artboard' &&
+            item.src &&
+            selectedItemIdsRef.current.includes(itemId) &&
+            imageEditingIdRef.current !== itemId
+          ) {
+            // initialize contentTransform if missing
+            if (!item.contentTransform) {
+              setCanvasItems(prev => prev.map(i => {
+                if (i.id !== itemId || !i.src) return i;
+                return {
+                  ...i,
+                  contentTransform: { x: 0, y: 0, width: i.width, height: i.height, rotation: 0 },
+                };
+              }));
+            }
+            imageEditSnapshot.current = item.contentTransform ?? null;
+            setImageEditingId(itemId);
+            canvasElRef.current?.setPointerCapture(e.pointerId);
+            return;
+          }
+
+          // 편집 모드 중 다른 아이템 클릭 → 편집 모드 확정 후 선택 변경
+          if (imageEditingIdRef.current && imageEditingIdRef.current !== itemId) {
+            handleImageTransformConfirm();
+          }
+
           setSelectedItemIds([itemId]);
           if (item.locked) return;
           setHistoryStates(h => [...h, canvasItemsRef.current]);
@@ -636,7 +839,8 @@ export default function App() {
           canvasElRef.current?.setPointerCapture(e.pointerId);
         }
       } else {
-        // 빈 캔버스 → 드래그 선택 시작
+        // 빈 캔버스 → 편집 모드 종료(확정) 후 드래그 선택 시작
+        if (imageEditingIdRef.current) handleImageTransformConfirm();
         setSelectedItemIds([]);
         const pt = getCanvasCoords(e.clientX, e.clientY);
         dragSelectStartRef.current = { ptX: pt.x, ptY: pt.y };
@@ -741,6 +945,64 @@ export default function App() {
         endX: pt.x,
         endY: pt.y,
       });
+      return;
+    }
+
+    // Image transform drag (move / resize / rotate within artboard)
+    if (isTransformingImage.current && imageTransformItemId.current) {
+      const pt = getCanvasCoords(e.clientX, e.clientY);
+      const s = imageTransformStart.current;
+      const id = imageTransformItemId.current;
+      const op = imageTransformOp.current;
+
+      if (op === 'move') {
+        const dx = pt.x - s.ptX;
+        const dy = pt.y - s.ptY;
+        setCanvasItems(prev => prev.map(i =>
+          i.id === id
+            ? { ...i, contentTransform: { ...i.contentTransform!, x: s.tx + dx, y: s.ty + dy } }
+            : i
+        ));
+      } else if (op === 'resize') {
+        const { dx, dy } = imageResizeAxis.current;
+        const deltaX = dx !== 0 ? (pt.x - s.ptX) * dx : 0;
+        const deltaY = dy !== 0 ? (pt.y - s.ptY) * dy : 0;
+        const aspect = s.tw / s.th;
+
+        let newW = dx !== 0 ? Math.max(s.tw + deltaX, 20) : s.tw;
+        let newH = dy !== 0 ? Math.max(s.th + deltaY, 20) : s.th;
+
+        // Corner handles: always lock aspect ratio; Shift = override to free resize
+        if (dx !== 0 && dy !== 0) {
+          if (!e.shiftKey) {
+            newH = newW / aspect;
+          }
+          // Shift held on corner → recalculate newH freely
+          if (e.shiftKey) {
+            newH = Math.max(s.th + deltaY, 20);
+          }
+        }
+
+        const newX = dx === -1 ? s.tx + (s.tw - newW) : s.tx;
+        const newY = dy === -1 ? s.ty + (s.th - newH) : s.ty;
+
+        setCanvasItems(prev => prev.map(i =>
+          i.id === id
+            ? { ...i, contentTransform: { ...i.contentTransform!, x: newX, y: newY, width: newW, height: newH } }
+            : i
+        ));
+      } else if (op === 'rotate') {
+        const el = canvasElRef.current as HTMLElement & { _rotCx?: number; _rotCy?: number };
+        const cx = el._rotCx ?? 0;
+        const cy = el._rotCy ?? 0;
+        let angle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI) + 90;
+        if (e.shiftKey) angle = Math.round(angle / 15) * 15;
+        setCanvasItems(prev => prev.map(i =>
+          i.id === id
+            ? { ...i, contentTransform: { ...i.contentTransform!, rotation: angle } }
+            : i
+        ));
+      }
       return;
     }
 
@@ -865,6 +1127,16 @@ export default function App() {
       }
       dragSelectStartRef.current = null;
       isDragSelectingRef.current = false;
+      return;
+    }
+
+    if (isTransformingImage.current) {
+      // rotate 커서 복원
+      if (imageTransformOp.current === 'rotate' && canvasElRef.current) {
+        canvasElRef.current.style.cursor = 'default';
+      }
+      isTransformingImage.current = false;
+      imageTransformItemId.current = null;
       return;
     }
 
@@ -1146,7 +1418,9 @@ export default function App() {
                     zIndex: item.zIndex,
                     background: item.type === 'artboard' ? '#ffffff' : 'transparent',
                     border: '1px solid #dddddd',
-                    overflow: (item.type === 'artboard' || item.type === 'upload') ? 'hidden' : undefined,
+                    overflow: (item.type === 'artboard' || item.type === 'upload')
+                      ? (imageEditingId === item.id ? 'visible' : 'hidden')
+                      : undefined,
                     pointerEvents: (isGenerating || canvasMode !== 'select') ? 'none' : 'all',
                     cursor: canvasMode === 'select' ? 'default' : 'inherit',
                   }}
@@ -1161,9 +1435,101 @@ export default function App() {
                         transformOrigin: 'top left',
                       }}
                     >
-                      {item.src && (
-                        <img src={item.src} alt="" className="w-full h-full object-contain" draggable={false} />
-                      )}
+                      {item.src && (() => {
+                        const ct = item.contentTransform;
+                        if (ct) {
+                          return (
+                            <img
+                              src={item.src}
+                              alt=""
+                              className={imageEditingId === item.id ? 'img-move-area' : ''}
+                              draggable={false}
+                              style={{
+                                position: 'absolute',
+                                left: ct.x,
+                                top: ct.y,
+                                width: ct.width,
+                                height: ct.height,
+                                transform: `rotate(${ct.rotation}deg)`,
+                                transformOrigin: 'center center',
+                                cursor: imageEditingId === item.id ? 'move' : 'default',
+                                pointerEvents: imageEditingId === item.id ? 'all' : 'none',
+                                userSelect: 'none',
+                              }}
+                            />
+                          );
+                        }
+                        return <img src={item.src} alt="" className="w-full h-full object-contain" draggable={false} />;
+                      })()}
+
+                      {/* Image transform handles overlay */}
+                      {imageEditingId === item.id && item.contentTransform && (() => {
+                        const ct = item.contentTransform;
+                        const hSize = 10 / scale;
+                        const rotHandleOffset = 28 / scale;
+                        const handles = [
+                          { dx: -1, dy: -1, cursor: 'nwse-resize', x: ct.x,              y: ct.y },
+                          { dx:  1, dy: -1, cursor: 'nesw-resize', x: ct.x + ct.width,    y: ct.y },
+                          { dx: -1, dy:  1, cursor: 'nesw-resize', x: ct.x,              y: ct.y + ct.height },
+                          { dx:  1, dy:  1, cursor: 'nwse-resize', x: ct.x + ct.width,    y: ct.y + ct.height },
+                          { dx:  0, dy: -1, cursor: 'ns-resize',   x: ct.x + ct.width / 2, y: ct.y },
+                          { dx:  0, dy:  1, cursor: 'ns-resize',   x: ct.x + ct.width / 2, y: ct.y + ct.height },
+                          { dx: -1, dy:  0, cursor: 'ew-resize',   x: ct.x,              y: ct.y + ct.height / 2 },
+                          { dx:  1, dy:  0, cursor: 'ew-resize',   x: ct.x + ct.width,    y: ct.y + ct.height / 2 },
+                        ];
+                        return (
+                          <div className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible', zIndex: 10 }}>
+                            {/* Dashed border around image */}
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                left: ct.x, top: ct.y, width: ct.width, height: ct.height,
+                                transform: `rotate(${ct.rotation}deg)`,
+                                transformOrigin: 'center center',
+                                border: `${1.5 / scale}px dashed #f97316`,
+                              }}
+                            />
+                            {/* Resize handles */}
+                            {handles.map((h, i) => (
+                              <div
+                                key={`ih-${i}`}
+                                className="img-resize-handle"
+                                data-dx={h.dx}
+                                data-dy={h.dy}
+                                style={{
+                                  position: 'absolute',
+                                  left: h.x - hSize / 2,
+                                  top: h.y - hSize / 2,
+                                  width: hSize,
+                                  height: hSize,
+                                  background: 'white',
+                                  border: `${1.5 / scale}px solid #f97316`,
+                                  borderRadius: '999px',
+                                  pointerEvents: 'all',
+                                  cursor: h.cursor,
+                                  zIndex: 11,
+                                }}
+                              />
+                            ))}
+                            {/* Rotate handle */}
+                            <div
+                              className="img-rotate-handle cursor-rotate"
+                              style={{
+                                position: 'absolute',
+                                left: ct.x + ct.width / 2 - hSize / 2,
+                                top: ct.y - rotHandleOffset - hSize / 2,
+                                width: hSize,
+                                height: hSize,
+                                background: '#f97316',
+                                border: `${1.5 / scale}px solid white`,
+                                borderRadius: '999px',
+                                pointerEvents: 'all',
+                                zIndex: 11,
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       {/* Artboard internal grid */}
                       <div
@@ -1311,11 +1677,11 @@ export default function App() {
                         height: item.height + 2,
                         borderWidth: `${1.6 / scale}px`,
                         borderStyle: 'solid',
-                        borderColor: '#1d4ed8',
+                        borderColor: imageEditingId === id ? '#f97316' : '#1d4ed8',
                       }}
                     >
-                      {/* Artboard top-left control bar (zoom + lock) */}
-                      {(item.type === 'artboard' || item.type === 'upload') && (
+                      {/* Artboard top-left control bar (zoom + lock) — hidden in image edit mode */}
+                      {(item.type === 'artboard' || item.type === 'upload') && imageEditingId !== id && (
                         <div
                           style={{
                             position: 'absolute',
@@ -1394,8 +1760,78 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Floating control bar */}
-                      <div
+                      {/* Image edit mode: bottom confirm / cancel bar */}
+                      {imageEditingId === id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: `${-56 / barScale}px`,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            height: `${ctrlBarH}px`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: `${ctrlGap}px`,
+                            padding: `0 ${ctrlPadX}px`,
+                            background: theme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.85)',
+                            backdropFilter: 'blur(8px)',
+                            borderRadius: `${999 / barScale}px`,
+                            border: `${1 / barScale}px solid rgba(0,0,0,0.08)`,
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                            pointerEvents: 'auto',
+                            whiteSpace: 'nowrap',
+                          }}
+                          onPointerDown={e => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Rotation label */}
+                          {(item.contentTransform?.rotation ?? 0) !== 0 && (
+                            <span style={{
+                              fontSize: `${11 / barScale}px`,
+                              color: theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                              minWidth: `${32 / barScale}px`,
+                              textAlign: 'center',
+                            }}>
+                              {Math.round(item.contentTransform!.rotation)}°
+                            </span>
+                          )}
+                          {/* Confirm */}
+                          <button
+                            title="변환 확정"
+                            style={{
+                              width: `${ctrlBtnSize}px`, height: `${ctrlBtnSize}px`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: `${999 / barScale}px`,
+                              background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                              color: '#16a34a',
+                            }}
+                            onClick={handleImageTransformConfirm}
+                          >
+                            <svg width={ctrlIconSize} height={ctrlIconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </button>
+                          {/* Cancel */}
+                          <button
+                            title="변환 취소"
+                            style={{
+                              width: `${ctrlBtnSize}px`, height: `${ctrlBtnSize}px`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: `${999 / barScale}px`,
+                              background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                              color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                            }}
+                            onClick={handleImageTransformCancel}
+                          >
+                            <svg width={ctrlIconSize} height={ctrlIconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Floating control bar — hidden in image edit mode */}
+                      {imageEditingId !== id && <div
                         style={{
                           position: 'absolute',
                           top: `${-56 / barScale}px`,
@@ -1515,7 +1951,7 @@ export default function App() {
                         >
                           <Trash2 style={{ width: `${ctrlIconSize}px`, height: `${ctrlIconSize}px` }} />
                         </button>
-                      </div>
+                      </div>}
                     </div>
                   );
                 })}

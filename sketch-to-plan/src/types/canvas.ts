@@ -40,5 +40,12 @@ export interface CanvasItem {
   sketchResolution?: string;
   contentScale?: number;
   contentOffset?: { x: number; y: number };
+  contentTransform?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+  };
   locked?: boolean;
 }

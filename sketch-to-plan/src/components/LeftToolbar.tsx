@@ -57,13 +57,15 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
   const strokePopupCls = 'absolute left-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 flex items-center h-8 px-0.5 gap-0.5 bg-white/90 dark:bg-black/90 border border-black/10 dark:border-white/10 rounded-full backdrop-blur-sm pointer-events-auto';
 
-  const renderStrokeDot = (size: number, selected: boolean) =>
+  const VISUAL_SIZES = [2, 4, 6, 8, 10] as const;
+
+  const renderStrokeDot = (visualSize: number, selected: boolean) =>
     selected ? (
       <div className="rounded-full flex items-center justify-center" style={{ width: 24, height: 24, backgroundColor: theme === 'dark' ? 'white' : 'black' }}>
-        <div className="rounded-full" style={{ width: size, height: size, backgroundColor: theme === 'dark' ? 'black' : 'white' }} />
+        <div className="rounded-full" style={{ width: visualSize, height: visualSize, backgroundColor: theme === 'dark' ? 'black' : 'white' }} />
       </div>
     ) : (
-      <div className="rounded-full" style={{ width: size, height: size, backgroundColor: theme === 'dark' ? 'white' : 'black' }} />
+      <div className="rounded-full" style={{ width: visualSize, height: visualSize, backgroundColor: theme === 'dark' ? 'white' : 'black' }} />
     );
 
   return (
@@ -131,10 +133,10 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({
           </button>
           {showStrokePanel === 'pen' && (
             <div className={strokePopupCls} style={pillShadow}>
-              {([0.5, 1, 2, 4, 6] as const).map(size => (
+              {([0.5, 1, 2, 4, 6] as const).map((size, i) => (
                 <button key={size} onClick={() => setPenStrokeWidth(size)}
                   className="w-8 h-8 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
-                  {renderStrokeDot(size, penStrokeWidth === size)}
+                  {renderStrokeDot(VISUAL_SIZES[i], penStrokeWidth === size)}
                 </button>
               ))}
             </div>
@@ -155,10 +157,10 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({
           </button>
           {showStrokePanel === 'eraser' && (
             <div className={strokePopupCls} style={pillShadow}>
-              {([10, 15, 20, 25, 30] as const).map(size => (
+              {([10, 15, 20, 25, 30] as const).map((size, i) => (
                 <button key={size} onClick={() => setEraserStrokeWidth(size)}
                   className="w-8 h-8 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-black/5 dark:hover:bg-white/5">
-                  {renderStrokeDot(size, eraserStrokeWidth === size)}
+                  {renderStrokeDot(VISUAL_SIZES[i], eraserStrokeWidth === size)}
                 </button>
               ))}
             </div>
