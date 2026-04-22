@@ -579,9 +579,10 @@ export default function App() {
 
   const handleImageTransformCancel = useCallback(() => {
     const id = imageEditingIdRef.current;
-    if (id && imageEditSnapshot.current !== undefined) {
+    // snapshot이 null이면 contentTransform을 변경하지 않고 편집 모드만 종료
+    if (id && imageEditSnapshot.current !== null && imageEditSnapshot.current !== undefined) {
       setCanvasItems(prev => prev.map(i =>
-        i.id === id ? { ...i, contentTransform: imageEditSnapshot.current ?? undefined } : i
+        i.id === id ? { ...i, contentTransform: imageEditSnapshot.current! } : i
       ));
     }
     imageEditSnapshot.current = null;
@@ -1465,16 +1466,31 @@ export default function App() {
                         const ct = item.contentTransform;
                         const hSize = 10 / scale;
                         const rotHandleOffset = 28 / scale;
+
+                        // 이미지 중심 기준 회전 변환 헬퍼
+                        const cx = ct.x + ct.width / 2;
+                        const cy = ct.y + ct.height / 2;
+                        const rad = (ct.rotation ?? 0) * Math.PI / 180;
+                        const cosR = Math.cos(rad);
+                        const sinR = Math.sin(rad);
+                        const rotatePoint = (px: number, py: number) => ({
+                          x: cx + (px - cx) * cosR - (py - cy) * sinR,
+                          y: cy + (px - cx) * sinR + (py - cy) * cosR,
+                        });
+
                         const handles = [
-                          { dx: -1, dy: -1, cursor: 'nwse-resize', x: ct.x,              y: ct.y },
-                          { dx:  1, dy: -1, cursor: 'nesw-resize', x: ct.x + ct.width,    y: ct.y },
-                          { dx: -1, dy:  1, cursor: 'nesw-resize', x: ct.x,              y: ct.y + ct.height },
-                          { dx:  1, dy:  1, cursor: 'nwse-resize', x: ct.x + ct.width,    y: ct.y + ct.height },
-                          { dx:  0, dy: -1, cursor: 'ns-resize',   x: ct.x + ct.width / 2, y: ct.y },
-                          { dx:  0, dy:  1, cursor: 'ns-resize',   x: ct.x + ct.width / 2, y: ct.y + ct.height },
-                          { dx: -1, dy:  0, cursor: 'ew-resize',   x: ct.x,              y: ct.y + ct.height / 2 },
-                          { dx:  1, dy:  0, cursor: 'ew-resize',   x: ct.x + ct.width,    y: ct.y + ct.height / 2 },
+                          { dx: -1, dy: -1, cursor: 'nwse-resize', ...rotatePoint(ct.x,              ct.y) },
+                          { dx:  1, dy: -1, cursor: 'nesw-resize', ...rotatePoint(ct.x + ct.width,    ct.y) },
+                          { dx: -1, dy:  1, cursor: 'nesw-resize', ...rotatePoint(ct.x,              ct.y + ct.height) },
+                          { dx:  1, dy:  1, cursor: 'nwse-resize', ...rotatePoint(ct.x + ct.width,    ct.y + ct.height) },
+                          { dx:  0, dy: -1, cursor: 'ns-resize',   ...rotatePoint(ct.x + ct.width / 2, ct.y) },
+                          { dx:  0, dy:  1, cursor: 'ns-resize',   ...rotatePoint(ct.x + ct.width / 2, ct.y + ct.height) },
+                          { dx: -1, dy:  0, cursor: 'ew-resize',   ...rotatePoint(ct.x,              ct.y + ct.height / 2) },
+                          { dx:  1, dy:  0, cursor: 'ew-resize',   ...rotatePoint(ct.x + ct.width,    ct.y + ct.height / 2) },
                         ];
+
+                        const rotHandlePos = rotatePoint(ct.x + ct.width / 2, ct.y - rotHandleOffset);
+
                         return (
                           <div className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible', zIndex: 10 }}>
                             {/* Dashed border around image */}
@@ -1487,7 +1503,7 @@ export default function App() {
                                 border: `${1.5 / scale}px dashed #f97316`,
                               }}
                             />
-                            {/* Resize handles */}
+                            {/* Resize handles — rotated with image */}
                             {handles.map((h, i) => (
                               <div
                                 key={`ih-${i}`}
@@ -1509,13 +1525,13 @@ export default function App() {
                                 }}
                               />
                             ))}
-                            {/* Rotate handle */}
+                            {/* Rotate handle — rotated with image */}
                             <div
                               className="img-rotate-handle cursor-rotate"
                               style={{
                                 position: 'absolute',
-                                left: ct.x + ct.width / 2 - hSize / 2,
-                                top: ct.y - rotHandleOffset - hSize / 2,
+                                left: rotHandlePos.x - hSize / 2,
+                                top: rotHandlePos.y - hSize / 2,
                                 width: hSize,
                                 height: hSize,
                                 background: '#f97316',
