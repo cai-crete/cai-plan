@@ -807,17 +807,15 @@ export default function App() {
             selectedItemIdsRef.current.includes(itemId) &&
             imageEditingIdRef.current !== itemId
           ) {
-            // initialize contentTransform if missing
-            if (!item.contentTransform) {
-              setCanvasItems(prev => prev.map(i => {
-                if (i.id !== itemId || !i.src) return i;
-                return {
-                  ...i,
-                  contentTransform: { x: 0, y: 0, width: i.width, height: i.height, rotation: 0 },
-                };
-              }));
+            // contentTransform 초기값을 로컬 변수로 먼저 계산 (snapshot 동기 캡처)
+            let ct = item.contentTransform;
+            if (!ct) {
+              ct = { x: 0, y: 0, width: item.width, height: item.height, rotation: 0 };
+              setCanvasItems(prev => prev.map(i =>
+                i.id !== itemId ? i : { ...i, contentTransform: ct! }
+              ));
             }
-            imageEditSnapshot.current = item.contentTransform ?? null;
+            imageEditSnapshot.current = ct; // 항상 올바른 값 캡처
             setImageEditingId(itemId);
             canvasElRef.current?.setPointerCapture(e.pointerId);
             return;
@@ -1677,7 +1675,7 @@ export default function App() {
                         height: item.height + 2,
                         borderWidth: `${1.6 / scale}px`,
                         borderStyle: 'solid',
-                        borderColor: imageEditingId === id ? '#f97316' : '#1d4ed8',
+                        borderColor: '#1d4ed8',
                       }}
                     >
                       {/* Artboard top-left control bar (zoom + lock) — hidden in image edit mode */}

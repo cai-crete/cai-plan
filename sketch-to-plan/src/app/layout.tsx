@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Sketch to Image — N08',
-  description: 'CAI 하네스 N08: 스케치 → 극사실적 이미지 생성',
+  title: 'Sketch to Plan v2',
+  description: 'CAI 하네스: 스케치 → 건축 평면도 생성',
 };
 
 export const viewport: Viewport = {
