@@ -174,6 +174,11 @@ export async function POST(req: NextRequest) {
     user_prompt:  user_prompt || null,
   });
 
+  // ── 공유 상태 변수 ────────────────────────────────────────────────
+  let resultPanel          = '';
+  let siteAuthorityWarning = false;
+  let scaleMismatchWarning = false;
+
   // ── Phase 1: §1 ORCHESTRATE + §2 PERCEIVE + §3 LOCK & TRANSFORM ────
   let phase1Text = '';
   let gscData    = '';
@@ -194,7 +199,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const phase1Prompt = [
-      '=== Phase 1: Analysis ===',
+      '=== Phase 1: Analysis & Result Summary ===',
       '',
       '컨텍스트:',
       ...contextLines,
@@ -221,6 +226,13 @@ export async function POST(req: NextRequest) {
       '```gsc',
       '{GSC 전체 내용}',
       '```',
+      '',
+      '【STEP E】 §5 VERIFY & DELIVER — GSC 기반 품질 검증 및 결과 요약 텍스트 출력:',
+      '  - §5.1~§5.4 품질 검증 실행 (위상 무결성, 접근성, 신뢰도)',
+      '  - §5.6 Result Summary 포맷으로 출력 (반드시 "■ Result Summary" 헤더로 시작)',
+      '  - §5.10 Room Parameter Panel 출력 (확인된 실이 3개 이상인 경우)',
+      '  - 지적도/사이트 권위 불일치 감지 시: SITE_AUTHORITY_WARNING 키워드 포함',
+      '  - 축척 불일치 감지 시: SCALE_MISMATCH_WARNING 키워드 포함',
     ].join('\n');
 
     const makePhase1Call = (modelName: string) => () => {
@@ -239,6 +251,14 @@ export async function POST(req: NextRequest) {
 
     gscData          = extractBlock(phase1Text, 'gsc');
     orchestrationLog = extractWorkmanagerLog(phase1Text);
+    resultPanel      = extractResultPanel(phase1Text);
+
+    if (/SITE[_\s]AUTHORITY[_\s]WARNING|site authority warning/i.test(phase1Text)) {
+      siteAuthorityWarning = true;
+    }
+    if (/SCALE[_\s]MISMATCH[_\s]WARNING|scale mismatch warning/i.test(phase1Text)) {
+      scaleMismatchWarning = true;
+    }
 
     console.log('[SKETCH-TO-PLAN] Phase 1 complete', {
       duration_ms:            Date.now() - phase1Start,
@@ -260,11 +280,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Analysis failed: ${msg}` }, { status: 503 });
   }
 
-  // ── Phase 2: §4 SYNTHESIZE + §5 VERIFY & DELIVER ──────────────────
+  // ── Phase 2: §4 SYNTHESIZE ────────────────────────────────────────
   let generatedPlanImageBase64 = '';
-  let resultPanel = '';
-  let siteAuthorityWarning = false;
-  let scaleMismatchWarning = false;
   let phase2ModelUsed = MODEL_IMAGE_GEN;
 
   try {
@@ -275,7 +292,7 @@ export async function POST(req: NextRequest) {
       : '';
 
     const phase2Prompt = [
-      '=== Phase 2: Synthesis & Delivery ===',
+      '=== Phase 2: Image Synthesis ===',
       '',
       'Phase 1 GSC (Geometry-State Contract):',
       '```',
@@ -283,15 +300,9 @@ export async function POST(req: NextRequest) {
       '```',
       '',
       ...(aspectRatioLine ? [aspectRatioLine, ''] : []),
-      '다음 순서로 실행하세요:',
-      '【STEP E】 §4 SYNTHESIZE — GSC를 기반으로 2D 직교 CAD 평면도 이미지를 생성하세요.',
+      '§4 SYNTHESIZE — GSC를 기반으로 2D 직교 CAD 평면도 이미지를 생성하세요.',
       '  - 원본 이미지 재참조 금지. GSC만 사용.',
       '  - §4.4 CAD 출력 표준 (흑백, 선 굵기 위계, 솔리드 포쉐, Boolean Union) 준수.',
-      '',
-      '【STEP F】 §5 VERIFY & DELIVER — 이미지 생성 후 텍스트로 출력:',
-      '  - §5.1~§5.4 품질 검증 실행',
-      '  - §5.6 Result Summary 포맷 출력',
-      '  - §5.10 Room Parameter Panel 출력 (실이 3개 이상 확인된 경우)',
     ].join('\n');
 
     const makePhase2Call = (modelName: string) => () => {
@@ -310,25 +321,14 @@ export async function POST(req: NextRequest) {
         const parts = r.response.candidates?.[0]?.content?.parts ?? [];
         const imgPart = parts.find((p) => p.inlineData?.mimeType?.startsWith('image/'));
         if (!imgPart?.inlineData?.data) throw new Error('No image in generation response');
-        const textParts = parts.filter((p) => p.text).map((p) => p.text ?? '').join('\n');
-        return { image: imgPart.inlineData.data, text: textParts };
+        return imgPart.inlineData.data;
       });
     };
 
-    const result = await callWithFallback(
+    generatedPlanImageBase64 = await callWithFallback(
       makePhase2Call(MODEL_IMAGE_GEN),
       makePhase2Call(MODEL_IMAGE_GEN_FB)
     );
-
-    generatedPlanImageBase64 = result.image;
-    resultPanel = extractResultPanel(result.text);
-
-    if (/SITE[_\s]AUTHORITY[_\s]WARNING|site authority warning/i.test(result.text)) {
-      siteAuthorityWarning = true;
-    }
-    if (/SCALE[_\s]MISMATCH[_\s]WARNING|scale mismatch warning/i.test(result.text)) {
-      scaleMismatchWarning = true;
-    }
 
     console.log('[SKETCH-TO-PLAN] Phase 2 complete', {
       duration_ms:             Date.now() - phase2Start,
